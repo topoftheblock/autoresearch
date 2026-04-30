@@ -1,0 +1,19 @@
+# Machine Learning & Data Processing
+numpy
+pandas
+scikit-learn
+
+# Experiment A: XGBoost
+xgboost
+
+# Experiment B: PyTorch
+torch
+torchvision
+
+# Optimization & LLM Integration
+optuna
+openai
+
+# Visualization (for analyzing the results)
+matplotlib
+seaborn
