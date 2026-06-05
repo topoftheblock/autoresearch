@@ -6,7 +6,7 @@ A comparative study evaluating autonomous LLM research loops against Bayesian op
 
 ## Overview
 
-This repository benchmarks an LLM agent acting as an AI researcher — rewriting code and navigating complex search spaces — against traditional mathematical optimizers (Optuna). Experiments are split across two domains to isolate where LLMs excel (architectural reasoning) versus where math wins (pure numerical optimization).
+This repository benchmarks an LLM agent acting as an AI researcher — rewriting code and navigating complex search spaces — against traditional mathematical optimizers, Optuna. Experiments are split across two domains to isolate where LLMs excel, architectural reasoning, versus where math wins (pure numerical optimization).
 
 ---
 
