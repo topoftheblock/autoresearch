@@ -1,0 +1,126 @@
+============================================================
+PHASE 2 NARRATIVE REPORT
+============================================================
+
+1. Overview
+────────────────────────────────────────
+   8 program.md variants were simulated with 3 runs each
+   of 40 experiments.  Baseline val_loss = 0.31.
+
+2. Best and worst performers
+────────────────────────────────────────
+   Highest improvement rate: S3-RF-HP
+     mean_impr_rate = 0.8417
+     mean_best_loss = -0.454243
+   Lowest improvement rate:  S1-RF-2
+     mean_impr_rate = 0.4500
+     mean_best_loss = -0.319361
+   Δ improvement_rate (best − worst) = 0.3917
+
+3. Hypothesis diversity
+────────────────────────────────────────
+   Most diverse agent behaviour: S1-RF-2
+     H = 1.5281
+   Least diverse (most disciplined): S3-RF-HP
+     H = 1.1828
+   Interpretation: lower entropy signals the program.md
+   successfully constrains the agent to a narrow strategy.
+
+4. Factorisation finding
+────────────────────────────────────────
+   See factorisation_test block below for R²(σ) vs R²(φ).
+   If ΔR² > 0.05, φ-level features matter beyond section presence.
+   This is the primary answer to your research question.
+
+5. ε-sweep interpretation
+────────────────────────────────────────
+   At ε=0:  8 classes (all singletons).
+   At ε=5:  8 classes.
+   At ε=21: 7 classes.
+   The ε value at which two programs that produced DIFFERENT
+   outcomes first merge is the critical threshold — that is
+   where the ~φ partition becomes too coarse to predict F([p]).
+
+6. Plug-and-replace note
+────────────────────────────────────────
+   Replace simulate_run() with a real results.tsv reader.
+   All downstream analysis (ANOVA, regression, curves, entropy)
+   operates on the same outcome_rows dict and will run unchanged.
+
+
+============================================================
+ANOVA: σ-class × improvement_rate
+============================================================
+
+Groups (σ-class → mean_improvement_rate values):
+  σ-01: [0.6417, 0.45, 0.475, 0.75]  mean=0.5792
+  σ-02: [0.6917, 0.7833]  mean=0.7375
+  σ-03: [0.45]  mean=0.45
+  σ-04: [0.8417]  mean=0.8417
+
+Insufficient replication for formal ANOVA.
+(Need ≥ 2 members per σ-class with ≥ 2 runs each.)
+Reporting descriptive statistics only.
+
+
+============================================================
+OLS Regression: φ features → mean_improvement_rate
+============================================================
+
+R² = 1.0000  (n=8 files, 9 features)
+
+Standardised coefficients (+ = higher feature → higher improvement rate):
+  scope_numeric_ranges             +0.0941  █
+  constraint_permissive            -0.0802  █
+  constraint_prohibitive           +0.0534  █
+  loop_has_budget_counter          +0.0522  █
+  eval_has_composite               -0.0522  █
+  strategy_ordering_kw             +0.0471  
+  eval_multi_objective             +0.0451  
+  global_token_count               -0.0217  
+  strategy_has_hint                +0.0214  
+
+Intercept: 0.6354
+
+
+============================================================
+FACTORISATION TEST: σ-only vs full φ
+============================================================
+
+  R²(σ-only OHE)  = 0.6301
+  R²(full φ)      = 0.9708
+  ΔR²             = +0.3407
+
+  Interpretation: φ explains substantially more variance
+  than σ alone. The factorisation 𝒫/~ ≅ ∏ τᵢ/~τᵢ does
+  NOT hold — feature magnitudes matter beyond section presence.
+
+
+============================================================
+ANYTIME PERFORMANCE CURVES
+============================================================
+File                  Step  s01  s05  s10  s20  s40
+──────────────────────────────────────────────────────────────────────
+S1-RF-1                     0.2767  0.2348  0.1323  -0.0466  -0.4209
+S1-RF-2                     0.2933  0.2506  0.1824  0.0034  -0.3194
+S1-RF-4                     0.3011  0.2254  0.0960  -0.0185  -0.2883
+S1-RF-5                     0.3092  0.2896  0.2253  0.0053  -0.3870
+S1-RF-minimal               0.2902  0.2231  0.1751  0.0424  -0.2350
+S2-GBM-1                    0.2981  0.2346  0.1682  0.0323  -0.3123
+S2-GBM-5                    0.2895  0.1955  0.1049  -0.1505  -0.5294
+S3-RF-HP                    0.2976  0.2187  0.1052  -0.0963  -0.4542
+
+
+============================================================
+HYPOTHESIS-TYPE DIVERSITY (Shannon entropy)
+============================================================
+File                   Mean H    Std H  Dominant hypothesis type
+──────────────────────────────────────────────────────────────────────
+S1-RF-1                1.3183   0.2193  ensemble_composition
+S1-RF-2                1.5281   0.0735  feature_engineering
+S1-RF-4                1.3078   0.2808  feature_engineering
+S1-RF-5                1.4908   0.0933  single_hp_increment
+S1-RF-minimal          1.4672   0.2261  ensemble_composition
+S2-GBM-1               1.3253   0.1947  single_hp_increment
+S2-GBM-5               1.3766   0.1049  single_hp_increment
+S3-RF-HP               1.1828   0.4540  single_hp_increment
