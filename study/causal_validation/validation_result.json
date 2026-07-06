@@ -1,0 +1,16 @@
+{
+  "held_out_config": {"M": 0, "B": 0, "S": 0, "O": 0, "E": 1},
+  "predictions_made_before_running": {
+    "best_cv_accuracy": 0.96480,
+    "n_experiments": 3.25
+  },
+  "observed_after_running_seeds_2_and_3": {
+    "best_cv_accuracy": 0.961045,
+    "n_experiments": 3.0
+  },
+  "discrepancy": {
+    "best_cv_accuracy": -0.003755,
+    "n_experiments": -0.25
+  },
+  "verdict": "n_experiments prediction essentially exact (fixed_budget axis S=0 dominates and was correctly identified as the sole driver). best_cv_accuracy prediction missed by ~0.0038 (about 0.4 accuracy points) in the direction of overestimating the benefit of exploit_first (E=1); since the main-effects-only surrogate cannot see interactions, and E's effect was estimated from configs that also varied other axes, this discrepancy is evidence that E's true effect on best_cv_accuracy is not purely additive - it likely interacts with B (breadth) or S (stopping budget), which a resolution-III design confounds away. This is the kind of informative miss the agenda anticipates: it points back at Step 2/5 (add an M-x-E or B-x-E interaction term, or run a resolution-IV+ design) rather than invalidating the method."
+}

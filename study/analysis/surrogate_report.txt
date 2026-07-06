@@ -1,0 +1,161 @@
+# Surrogate model report (Step 5)
+
+Design: Plackett-Burman resolution III, 5 axes, 8 configurations, 2 repeats each, averaged over repeats before fitting.
+
+Configuration-level table:
+
+     config_id  M  B  S  O  E  best_cv_accuracy  n_experiments  n_distinct_models  breadth_spread  mean_proposal_chars
+M0-B0-S0-O0-E0  0  0  0  0  0          0.962295            3.0                1.0           250.0                28.70
+M0-B0-S1-O1-E1  0  0  1  1  1          0.963545            3.0                1.0           200.0                92.00
+M0-B1-S0-O0-E1  0  1  0  0  1          0.964810            3.0                1.0           200.0                30.70
+M0-B1-S1-O1-E0  0  1  1  1  0          0.961045            2.0                2.0             0.0               154.25
+M1-B0-S0-O1-E1  1  0  0  1  1          0.963545            3.0                1.0           200.0                79.35
+M1-B0-S1-O0-E0  1  0  1  0  0          0.961045            2.0                1.0            50.0                42.75
+M1-B1-S0-O1-E0  1  1  0  1  0          0.961045            3.0                2.0            50.0                97.20
+M1-B1-S1-O0-E1  1  1  1  0  1          0.963545            3.0                1.0           200.0                53.10
+
+
+
+## Target: best_cv_accuracy
+
+R^2 (main-effects linear model) = 1.000
+
+Main effect coefficients (change in y from level 0 -> level 1, i.e. 2x the OLS coefficient on the +/-1 coded axis):
+
+  M: effect=-0.00063  (p=0.000, variance share=5.3%)
+  B: effect=+0.00000  (p=0.423, variance share=0.0%)
+  S: effect=-0.00063  (p=0.000, variance share=5.3%)
+  O: effect=-0.00063  (p=0.000, variance share=5.3%)
+  E: effect=+0.00250  (p=0.000, variance share=84.1%)
+
+Shallow decision tree (depth<=3):
+
+|--- E <= 0.50
+|   |--- M <= 0.50
+|   |   |--- S <= 0.50
+|   |   |   |--- value: [0.96]
+|   |   |--- S >  0.50
+|   |   |   |--- value: [0.96]
+|   |--- M >  0.50
+|   |   |--- value: [0.96]
+|--- E >  0.50
+|   |--- O <= 0.50
+|   |   |--- S <= 0.50
+|   |   |   |--- value: [0.96]
+|   |   |--- S >  0.50
+|   |   |   |--- value: [0.96]
+|   |--- O >  0.50
+|   |   |--- value: [0.96]
+
+
+## Target: n_experiments
+
+R^2 (main-effects linear model) = 0.667
+
+Main effect coefficients (change in y from level 0 -> level 1, i.e. 2x the OLS coefficient on the +/-1 coded axis):
+
+  M: effect=+0.00000  (p=1.000, variance share=0.0%)
+  B: effect=+0.00000  (p=1.000, variance share=0.0%)
+  S: effect=-0.50000  (p=0.293, variance share=50.0%)
+  O: effect=+0.00000  (p=1.000, variance share=0.0%)
+  E: effect=+0.50000  (p=0.293, variance share=50.0%)
+
+Shallow decision tree (depth<=3):
+
+|--- S <= 0.50
+|   |--- value: [3.00]
+|--- S >  0.50
+|   |--- E <= 0.50
+|   |   |--- value: [2.00]
+|   |--- E >  0.50
+|   |   |--- value: [3.00]
+
+
+## Target: n_distinct_models
+
+R^2 (main-effects linear model) = 1.000
+
+Main effect coefficients (change in y from level 0 -> level 1, i.e. 2x the OLS coefficient on the +/-1 coded axis):
+
+  M: effect=+0.00000  (p=0.594, variance share=0.0%)
+  B: effect=+0.50000  (p=0.000, variance share=33.3%)
+  S: effect=+0.00000  (p=0.652, variance share=0.0%)
+  O: effect=+0.50000  (p=0.000, variance share=33.3%)
+  E: effect=-0.50000  (p=0.000, variance share=33.3%)
+
+Shallow decision tree (depth<=3):
+
+|--- E <= 0.50
+|   |--- O <= 0.50
+|   |   |--- value: [1.00]
+|   |--- O >  0.50
+|   |   |--- value: [2.00]
+|--- E >  0.50
+|   |--- value: [1.00]
+
+
+## Target: breadth_spread
+
+R^2 (main-effects linear model) = 0.829
+
+Main effect coefficients (change in y from level 0 -> level 1, i.e. 2x the OLS coefficient on the +/-1 coded axis):
+
+  M: effect=-37.50000  (p=0.543, variance share=5.5%)
+  B: effect=-62.50000  (p=0.349, variance share=15.2%)
+  S: effect=-62.50000  (p=0.349, variance share=15.2%)
+  O: effect=-62.50000  (p=0.349, variance share=15.2%)
+  E: effect=+112.50000  (p=0.161, variance share=49.1%)
+
+Shallow decision tree (depth<=3):
+
+|--- E <= 0.50
+|   |--- O <= 0.50
+|   |   |--- S <= 0.50
+|   |   |   |--- value: [250.00]
+|   |   |--- S >  0.50
+|   |   |   |--- value: [50.00]
+|   |--- O >  0.50
+|   |   |--- M <= 0.50
+|   |   |   |--- value: [0.00]
+|   |   |--- M >  0.50
+|   |   |   |--- value: [50.00]
+|--- E >  0.50
+|   |--- value: [200.00]
+
+
+## Target: mean_proposal_chars
+
+R^2 (main-effects linear model) = 0.960
+
+Main effect coefficients (change in y from level 0 -> level 1, i.e. 2x the OLS coefficient on the +/-1 coded axis):
+
+  M: effect=-8.31250  (p=0.538, variance share=1.1%)
+  B: effect=+23.11250  (p=0.177, variance share=8.8%)
+  S: effect=+26.53750  (p=0.143, variance share=11.6%)
+  O: effect=+66.88750  (p=0.027, variance share=73.7%)
+  E: effect=-16.93750  (p=0.272, variance share=4.7%)
+
+Shallow decision tree (depth<=3):
+
+|--- O <= 0.50
+|   |--- M <= 0.50
+|   |   |--- B <= 0.50
+|   |   |   |--- value: [28.70]
+|   |   |--- B >  0.50
+|   |   |   |--- value: [30.70]
+|   |--- M >  0.50
+|   |   |--- E <= 0.50
+|   |   |   |--- value: [42.75]
+|   |   |--- E >  0.50
+|   |   |   |--- value: [53.10]
+|--- O >  0.50
+|   |--- E <= 0.50
+|   |   |--- M <= 0.50
+|   |   |   |--- value: [154.25]
+|   |   |--- M >  0.50
+|   |   |   |--- value: [97.20]
+|   |--- E >  0.50
+|   |   |--- S <= 0.50
+|   |   |   |--- value: [79.35]
+|   |   |--- S >  0.50
+|   |   |   |--- value: [92.00]

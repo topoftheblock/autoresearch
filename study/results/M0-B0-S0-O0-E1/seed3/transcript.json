@@ -1,0 +1,18 @@
+{
+  "config_id": "M0-B0-S0-O0-E1",
+  "config": {"M": 0, "B": 0, "S": 0, "O": 0, "E": 1},
+  "seed": 3,
+  "steps": [
+    {"step": 1, "action": "propose", "model": "random_forest", "params": {"n_estimators": 100, "max_depth": 5}, "content": "RF 100/5."},
+    {"step": 1, "action": "execute", "content": {"model": "random_forest", "params": {"n_estimators": 100, "max_depth": 5}, "cv_accuracy_mean": 0.95731, "cv_accuracy_std": 0.01709, "val_accuracy": 0.92982}},
+    {"step": 1, "action": "interpret", "content": "0.9573."},
+    {"step": 2, "action": "propose", "model": "random_forest", "params": {"n_estimators": 300, "max_depth": null}, "content": "Exploit: more trees, no cap."},
+    {"step": 2, "action": "execute", "content": {"model": "random_forest", "params": {"n_estimators": 300, "max_depth": null}, "cv_accuracy_mean": 0.95981, "cv_accuracy_std": 0.01675, "val_accuracy": 0.94737}},
+    {"step": 2, "action": "interpret", "content": "0.9598, improved."},
+    {"step": 3, "action": "propose", "model": "random_forest", "params": {"n_estimators": 150, "max_depth": 5, "min_samples_leaf": 2}, "content": "Third and final: refine near exp1, add leaf=2."},
+    {"step": 3, "action": "execute", "content": {"model": "random_forest", "params": {"n_estimators": 150, "max_depth": 5, "min_samples_leaf": 2}, "cv_accuracy_mean": 0.95728, "cv_accuracy_std": 0.01291, "val_accuracy": 0.94152}},
+    {"step": 3, "action": "interpret", "content": "0.9573, back down slightly."},
+    {"step": 3, "action": "decide", "decision": "stop",
+     "final_recommendation": "random_forest, n_estimators=300, max_depth=None (cv_mean=0.9598) - budget of 3 exhausted."}
+  ]
+}
