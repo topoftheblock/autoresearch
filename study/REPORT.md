@@ -10,23 +10,29 @@ saved under `results/`. Scope was deliberately kept small (5 axes, 8
 configurations, mostly 2 repeats) to fit a single research session; see
 **Limitations** for exactly what a full-scale version would need to add.
 
-Code lives under `study/`: `config/` (Step 2), `design/` (Step 3), `loop/`
-(the executor), `encoding/` (Step 4), `analysis/` (Step 5),
-`causal_validation/` (Step 6).
+Code lives under `study/`: `human_baseline/` (Step 1), `config/` (Step 2),
+`design/` (Step 3), `loop/` (the executor), `encoding/` (Step 4),
+`analysis/` (Step 5), `causal_validation/` (Step 6).
 
 ---
 
-## Step 1 — Human baseline: not run
+## Step 1 — Human baseline: authored simulation, not a real recording
 
-By explicit agreement, this pilot skipped Step 1. A genuine human think-aloud
-trace requires you to actually perform the task under recording — that can't
-be substituted. The taxonomy the loop already logs against
-(`hypothesize → propose → execute → interpret → decide`) is deliberately the
-same one the elaborated agenda proposes for the human trace, so a real
-recording can be segmented and compared to every existing run without
-changing any downstream code. **This is the single highest-priority next
-step** — without it, "distance from the human baseline" (one of the agenda's
-own behavioral features) doesn't exist yet.
+A genuine human think-aloud trace requires an actual person to perform the
+task under recording — that can't be substituted computationally. At the
+user's explicit request, `human_baseline/` instead contains an **authored
+simulation**: working through the agenda's own example question ("does the
+feature-subsampling ratio affect generalization of a Random Forest on this
+dataset") in the first person, running real experiments against the same
+executor used everywhere else, and writing up the reasoning as a think-aloud
+narrative (`human_baseline/session_narrative.md`), then segmenting it into
+the agenda's 6-item taxonomy (`human_baseline/transcript.json`). Every number
+in it is real; the reasoning process is not — it's a plausible reconstruction,
+not an observation of an actual human. See `human_baseline/README.md` for the
+full disclosure. This trace is used in Step 4/5 to compute a
+process-similarity feature, but should never be read as evidence about real
+human research behavior — only as a structural reference point (how many
+experiments, does the search broaden or narrow, when does it stop).
 
 ## Step 2 — program.md as a configuration space
 
@@ -56,11 +62,13 @@ budget here.
 
 Because the loop already emits structured JSON per step, segmentation into
 the action taxonomy was mechanical (`encoding/features.py`), not LLM-assisted
-classification of free text. Five behavioral features were computed per run:
+classification of free text. Six behavioral features were computed per run:
 `n_experiments`, `n_distinct_models` (how many of {RF, GBM} were actually
 tried), `breadth_spread` (range of `n_estimators` values tried, a proxy for
-search breadth), `best_cv_accuracy` (product quality), and
-`mean_proposal_chars` (a crude verbosity proxy). The full table is
+search breadth), `best_cv_accuracy` (product quality), `mean_proposal_chars`
+(a crude verbosity proxy), and `process_distance_to_human` (normalized edit
+distance between a run's coarse action sequence and the Step 1 reference
+trace's, via `encoding/human_distance.py`). The full table is
 `encoding/behavioral_table.json`.
 
 ## Step 5 — Surrogate model (the white box)
@@ -79,6 +87,7 @@ suggestive, not confirmatory**):
 | `n_distinct_models` (breadth of model families tried) | **B, O, E** (tied) | 33% each | broad↑, verbose↑, exploit-first↓ |
 | `best_cv_accuracy` | **E** (emphasis) | 84% | exploit-first → +0.0025 mean accuracy |
 | `n_experiments` | **S, E** (tied) | 50% each | adaptive stopping↓, exploit-first↑ |
+| `process_distance_to_human` | **S, E** (tied) | 50% each | adaptive stopping↑ distance, exploit-first↓ distance |
 
 Two things are worth flagging honestly. First, `O → verbosity` is close to a
 sanity check by construction (the axis literally instructs verbosity) — its
@@ -115,8 +124,11 @@ magnitude of E's effect can be trusted quantitatively.* Full numbers:
 
 ## Limitations (read before treating any number above as a finding)
 
-1. **No human baseline** (Step 1 skipped by agreement) — "distance from human
-   trace" isn't computed yet; add it before writing this up further.
+1. **The human baseline is authored, not recorded** (see Step 1 above) —
+   `process_distance_to_human` is computed and behaves sensibly (tracks the
+   same S/E split as `n_experiments`), but it measures similarity to an
+   invented reference, not to real human behavior. Replacing it with an
+   actual recorded session is still the top priority follow-up.
 2. **The acting "agent" was this same Claude Code session, not an independent
    fresh-context LLM call per run.** I acted as the research agent for every
    one of the 18 runs, deliberately trying to follow only what each
@@ -137,11 +149,11 @@ magnitude of E's effect can be trusted quantitatively.* Full numbers:
 
 ## What to do next, in order
 
-1. Record the Step 1 human baseline (think-aloud, Whisper transcription,
-   segment into the same 6-action taxonomy already used here).
+1. Record an actual human baseline (think-aloud, screen recording, Whisper
+   transcription) to replace `human_baseline/`'s authored simulation, then
+   recompute `process_distance_to_human` against the real trace.
 2. Swap the loop's decision-maker from me to independent API calls, and
    re-run the same 8-config design to check whether the effects above
    replicate without the self-study confound.
 3. Move to a resolution-IV design or full 32-run factorial once repeats are
    cheap, to estimate the B×E / S×E interactions that Step 6 flagged.
-4. Add the process-similarity-to-human-baseline feature once (1) exists.

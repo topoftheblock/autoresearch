@@ -4,15 +4,15 @@ Design: Plackett-Burman resolution III, 5 axes, 8 configurations, 2 repeats each
 
 Configuration-level table:
 
-     config_id  M  B  S  O  E  best_cv_accuracy  n_experiments  n_distinct_models  breadth_spread  mean_proposal_chars
-M0-B0-S0-O0-E0  0  0  0  0  0          0.962295            3.0                1.0           250.0                28.70
-M0-B0-S1-O1-E1  0  0  1  1  1          0.963545            3.0                1.0           200.0                92.00
-M0-B1-S0-O0-E1  0  1  0  0  1          0.964810            3.0                1.0           200.0                30.70
-M0-B1-S1-O1-E0  0  1  1  1  0          0.961045            2.0                2.0             0.0               154.25
-M1-B0-S0-O1-E1  1  0  0  1  1          0.963545            3.0                1.0           200.0                79.35
-M1-B0-S1-O0-E0  1  0  1  0  0          0.961045            2.0                1.0            50.0                42.75
-M1-B1-S0-O1-E0  1  1  0  1  0          0.961045            3.0                2.0            50.0                97.20
-M1-B1-S1-O0-E1  1  1  1  0  1          0.963545            3.0                1.0           200.0                53.10
+     config_id  M  B  S  O  E  best_cv_accuracy  n_experiments  n_distinct_models  breadth_spread  mean_proposal_chars  process_distance_to_human
+M0-B0-S0-O0-E0  0  0  0  0  0          0.962295            3.0                1.0           250.0                28.70                    0.52380
+M0-B0-S1-O1-E1  0  0  1  1  1          0.963545            3.0                1.0           200.0                92.00                    0.52385
+M0-B1-S0-O0-E1  0  1  0  0  1          0.964810            3.0                1.0           200.0                30.70                    0.52380
+M0-B1-S1-O1-E0  0  1  1  1  0          0.961045            2.0                2.0             0.0               154.25                    0.66670
+M1-B0-S0-O1-E1  1  0  0  1  1          0.963545            3.0                1.0           200.0                79.35                    0.52380
+M1-B0-S1-O0-E0  1  0  1  0  0          0.961045            2.0                1.0            50.0                42.75                    0.66670
+M1-B1-S0-O1-E0  1  1  0  1  0          0.961045            3.0                2.0            50.0                97.20                    0.52380
+M1-B1-S1-O0-E1  1  1  1  0  1          0.963545            3.0                1.0           200.0                53.10                    0.52385
 
 
 
@@ -159,3 +159,26 @@ Shallow decision tree (depth<=3):
 |   |   |   |--- value: [79.35]
 |   |   |--- S >  0.50
 |   |   |   |--- value: [92.00]
+
+
+## Target: process_distance_to_human
+
+R^2 (main-effects linear model) = 0.667
+
+Main effect coefficients (change in y from level 0 -> level 1, i.e. 2x the OLS coefficient on the +/-1 coded axis):
+
+  M: effect=+0.00000  (p=1.000, variance share=0.0%)
+  B: effect=+0.00000  (p=1.000, variance share=0.0%)
+  S: effect=+0.07148  (p=0.293, variance share=50.0%)
+  O: effect=+0.00000  (p=1.000, variance share=0.0%)
+  E: effect=-0.07142  (p=0.293, variance share=50.0%)
+
+Shallow decision tree (depth<=3):
+
+|--- S <= 0.50
+|   |--- value: [0.52]
+|--- S >  0.50
+|   |--- E <= 0.50
+|   |   |--- value: [0.67]
+|   |--- E >  0.50
+|   |   |--- value: [0.52]

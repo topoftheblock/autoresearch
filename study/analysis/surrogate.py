@@ -24,14 +24,26 @@ TARGETS = [
     "n_distinct_models",
     "breadth_spread",
     "mean_proposal_chars",
+    "process_distance_to_human",
 ]
 
 TABLE_PATH = Path(__file__).parent.parent / "encoding" / "behavioral_table.json"
+DESIGN_PATH = Path(__file__).parent.parent / "design" / "configs.json"
+
+
+def _design_config_ids():
+    configs = json.loads(DESIGN_PATH.read_text())
+    return {"-".join(f"{axis}{c[axis]}" for axis in AXES) for c in configs}
 
 
 def load_config_level_table() -> pd.DataFrame:
     rows = json.loads(TABLE_PATH.read_text())
     df = pd.DataFrame(rows)
+    # restrict to the 8 Plackett-Burman design configurations; the held-out
+    # configuration used for Step 6 causal validation must never enter the
+    # surrogate fit, or the validation stops being held-out.
+    design_ids = _design_config_ids()
+    df = df[df["config_id"].isin(design_ids)]
     # average over seeds/repeats per configuration, per Step 3's design
     agg = df.groupby(["config_id"] + AXES)[TARGETS].mean().reset_index()
     return agg

@@ -8,8 +8,12 @@ is mechanical, as anticipated in the elaborated agenda for the case where the
 loop already produces structured logs.
 """
 import json
+import sys
 from pathlib import Path
 from statistics import mean, pstdev
+
+sys.path.insert(0, str(Path(__file__).parent))
+from human_distance import process_distance
 
 RESULTS_DIR = Path(__file__).parent.parent / "results"
 
@@ -62,6 +66,7 @@ def encode_run(transcript: dict) -> dict:
         "best_cv_accuracy": best_cv,
         "improvement_over_first": round(improvement, 5),
         "mean_proposal_chars": round(verbosity, 1),
+        "process_distance_to_human": process_distance(transcript["steps"]),
     }
 
 
