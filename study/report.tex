@@ -7,8 +7,22 @@
 \usepackage{hyperref}
 \usepackage{parskip}
 \usepackage{caption}
+\usepackage{listings}
+\usepackage{xcolor}
 
 \emergencystretch=3em
+
+\lstdefinestyle{md}{
+  basicstyle=\ttfamily\scriptsize,
+  breaklines=true,
+  columns=fullflexible,
+  backgroundcolor=\color{gray!8},
+  frame=single,
+  framerule=0.3pt,
+  xleftmargin=2pt,
+  xrightmargin=2pt
+}
+\lstset{style=md}
 
 \title{Explaining the Behavior of an Instruction-Driven Research Agent:\\A Pilot Study}
 \author{Christian Block}
@@ -100,6 +114,111 @@ Each configuration was run twice, with two different random seeds, giving sixtee
 
 Running a configuration means generating its instruction file and then executing the loop it describes against a real machine learning task. Every run addresses the same question -- how does hyperparameter choice affect the generalization accuracy of Random Forest and Gradient Boosting classifiers on the Breast Cancer Wisconsin diagnostic dataset, a small, standard benchmark bundled with scikit-learn -- using the same fixed 70/30 split of the data into a training and a validation portion, so that only the instructions and the loop's own randomness differ from one run to the next. At each step of a run, the agent can request one experiment by naming a model family and a set of hyperparameters; an ordinary piece of Python code, not a language model, then actually fits that model, computes five-fold cross-validated accuracy and its standard deviation on the training portion, and computes accuracy on the held-out validation portion, and reports these real numbers back. This executor is the one part of the loop that never involves a language model: every number the agent sees is a genuine measurement from an actually-trained scikit-learn model. The agent, in turn, responds at each step with one of two structured actions: propose an experiment with a stated hypothesis, or interpret the last result and decide whether to continue or stop, giving a final recommendation if stopping. Logging every action this way, rather than as free-flowing prose, is what makes the next step mechanical rather than a difficult natural-language-understanding problem.
 
+\subsubsection{What \texttt{program.md} actually contains}
+
+Most of \texttt{program.md} is boilerplate that never changes between configurations: a fixed statement of the research question, a fixed description of the dataset and the tool available for running an experiment, and a fixed specification of the two-shape JSON format every response must follow (shown once, in full, in Listing~\ref{lst:jsonformat}, since it is identical across all 32 possible configurations). Only four short paragraphs -- evaluation, search strategy, budget and stopping, reporting style -- actually change, one per axis (the fifth axis, emphasis, is folded into the search-strategy paragraph alongside breadth). Listing~\ref{lst:programmd} shows these four paragraphs exactly as generated for two configurations at opposite corners of the design: configuration 7, $(M,B,S,O,E)=(0,0,0,0,0)$ -- vague metric, narrow, fixed budget, terse, explore-first -- and configuration 1, $(0,1,1,1,0)$ -- vague metric, broad, adaptive, verbose, explore-first. Everything outside these four paragraphs is character-for-character identical between the two files.
+
+\begin{lstlisting}[caption={The response format specification. Identical in every one of the 32 possible \texttt{program.md} files; shown once here rather than in every listing below.},label={lst:jsonformat}]
+At every step, respond with a single JSON object and nothing else,
+matching one of these two shapes:
+
+Proposing an experiment:
+{"action": "propose", "hypothesis": "<why you think this configuration
+ will help>", "model": "random_forest" | "gradient_boosting",
+ "params": {"<hyperparameter>": <value>, ...}}
+
+Interpreting the last result and deciding what happens next:
+{"action": "interpret", "interpretation": "<what the result tells you>",
+ "decision": "continue" | "stop", "final_recommendation": "<only
+ required when decision == stop: your final recommended model and
+ hyperparameters, and why>"}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={The four instructional paragraphs that actually vary, for configuration 7 (top, all axes at level 0) and configuration 1 (bottom, $(M,B,S,O,E)=(0,1,1,1,0)$). This is the entire textual difference between the two rendered instruction files.},label={lst:programmd}]
+--- Configuration 7: (M,B,S,O,E) = (0,0,0,0,0) ---
+
+## Evaluation
+Evaluate model quality in whatever way you judge appropriate.
+
+## Search strategy
+Stay within a single model family per experiment. Pick either
+RandomForestClassifier or GradientBoostingClassifier for the whole
+session unless you have exhausted reasonable hyperparameters for it
+and explicitly decide to switch.
+
+Prioritize breadth of search: try several meaningfully different
+configurations before you spend more than one experiment refining
+any single one of them.
+
+## Budget and stopping
+You have a fixed budget of exactly 3 experiments in total. Run
+exactly 3, then stop and report your final recommendation,
+regardless of the outcome of experiment 3.
+
+## Reporting style
+Keep every response short: state the action you are taking and the
+numbers involved, with minimal prose.
+
+
+--- Configuration 1: (M,B,S,O,E) = (0,1,1,1,0) ---
+
+## Evaluation
+Evaluate model quality in whatever way you judge appropriate.
+
+## Search strategy
+You are free to compare RandomForestClassifier and
+GradientBoostingClassifier side by side within the same session, and
+to vary multiple hyperparameters of each at once.
+
+Prioritize breadth of search: try several meaningfully different
+configurations before you spend more than one experiment refining
+any single one of them.
+
+## Budget and stopping
+You have a budget of up to 8 experiments. After each experiment,
+decide whether to continue: stop as soon as an experiment fails to
+improve the evaluation metric (defined above) by more than 0.002
+over the best result so far, or when you reach 8 experiments,
+whichever comes first.
+
+## Reporting style
+Explain your reasoning at every step in full sentences: what you
+hypothesize, why, what you expect to observe, and how you interpret
+the actual result relative to that expectation.
+\end{lstlisting}
+
+\subsubsection{What a run actually looks like}
+
+To make the loop mechanics concrete, Listing~\ref{lst:transcript} reproduces the first two iterations of one real run, generated from configuration 1 above. Every field under \texttt{execute} is the executor's real output for the stated model and hyperparameters -- not paraphrased or rounded by hand. The agent proposes Random Forest with 100 trees and depth 5 as a first, unremarkable baseline; the executor reports back a mean cross-validated accuracy of 0.962. Because configuration 1's search-strategy paragraph favors breadth before refinement, the second proposal switches model family entirely, to Gradient Boosting, rather than tuning the Random Forest further; that experiment comes back weaker (0.945 vs.\ 0.962), and because configuration 1's stopping rule requires an improvement of more than 0.002 to continue, this single disappointing exploratory step is itself what ends the run after only two experiments -- an interaction between the breadth and stopping-rule paragraphs that is typical of the kind of behavior this study tries to measure systematically rather than notice anecdotally.
+
+\begin{lstlisting}[caption={First two iterations of a real run under configuration 1. Fields under \texttt{execute} are genuine executor output.},label={lst:transcript}]
+step 1  propose    model=random_forest, params={n_estimators: 100,
+                   max_depth: 5}
+        "I'll start with a Random Forest of 100 trees and moderate
+         depth 5, a sensible default for a small tabular dataset,
+         to establish a baseline before exploring further."
+step 1  execute    cv_accuracy_mean=0.9623  cv_accuracy_std=0.0113
+                   val_accuracy=0.9474
+step 1  interpret  "The baseline Random Forest already reaches a
+         cross-validated accuracy of about 0.962 ... this becomes
+         the reference to beat."
+step 1  decide     continue
+
+step 2  propose    model=gradient_boosting, params={n_estimators: 100,
+                   max_depth: 3, learning_rate: 0.1}
+        "Since I am encouraged to explore breadth before refining,
+         I will now try a completely different model family ..."
+step 2  execute    cv_accuracy_mean=0.9448  cv_accuracy_std=0.0150
+                   val_accuracy=0.9357
+step 2  interpret  "Gradient Boosting underperforms the Random
+         Forest baseline here (0.945 vs 0.962) ... well past the
+         point of counting as an improvement."
+step 2  decide     stop
+        final_recommendation: "random_forest, n_estimators=100,
+         max_depth=5 (cv_mean~0.962). ... the exploratory experiment
+         itself triggered the stopping rule."
+\end{lstlisting}
+
 \subsection{Step 4: turning a run into a handful of numbers}
 \label{sec:encoding}
 
@@ -110,7 +229,17 @@ That last quantity is computed as follows. Every run's sequence of logged action
 \subsection{Step 5: a simple model of configuration and behavior}
 \label{sec:surrogate}
 
-For each of the five behavioral quantities, a linear model was fit relating it to the five configuration axes, each axis coded as $-1$ or $+1$ rather than $0$ or $1$. Coding the axes this way, together with the fact that the Plackett--Burman design is orthogonal -- meaning the coded columns for any two axes are uncorrelated across the eight configurations -- has a useful consequence: each axis's coefficient can be estimated independently of the others, and the share of the model's total explained variance attributable to a given axis is simply that axis's squared coefficient divided by the sum of all five squared coefficients. This turns the fitted model into a small, readable table: for each behavioral quantity, which axis matters most, and what fraction of the variation it accounts for. As a cross-check, a shallow decision tree (limited to three levels) was also fit for each quantity, to confirm it splits on the same axes the linear model considers important. Before fitting either model, the two repeats of each configuration were averaged together, so the model was fit on eight configuration-level values rather than sixteen individual runs, matching the resolution the ablation design was actually built to support.
+For each of the six behavioral quantities $y$, a linear model of the form
+\[
+y \;=\; \beta_0 + \beta_M x_M + \beta_B x_B + \beta_S x_S + \beta_O x_O + \beta_E x_E + \varepsilon
+\]
+was fit by ordinary least squares, where each $x_i \in \{-1,+1\}$ codes one of the five axes (level 0 as $-1$, level 1 as $+1$) and $\varepsilon$ is the usual error term. Before fitting, the two repeats of each configuration were averaged together, so the model is fit on $n=8$ configuration-level values rather than sixteen individual runs -- one row per row of Table~\ref{tab:design} -- matching the resolution the ablation design was actually built to support.
+
+Coding the axes as $\pm 1$, together with the fact that the Plackett--Burman design is orthogonal (the coded columns for any two axes are uncorrelated across the eight configurations), has two useful consequences. First, each $\beta_i$ can be estimated independently of the others: the fitted value of $\beta_M$, say, does not depend on which other axes happened to be varied alongside it. Second, the share of the model's total explained variance attributable to axis $i$ is simply $\beta_i^2 / \sum_j \beta_j^2$, giving a direct, additive breakdown of "how much of the variation in $y$ this axis accounts for" without any further computation.
+
+For every coefficient, \texttt{statsmodels} additionally reports a standard error, a $t$-statistic, and a two-sided $p$-value for the null hypothesis $\beta_i = 0$ (that this axis has no effect on $y$) against a $t$-distribution. These are included in full in Section~\ref{sec:results} rather than only summarized, together with one number that has to be kept in view when reading them: with $n=8$ data points and six free parameters (the intercept plus five slopes), the model has only $n - 6 = 2$ residual degrees of freedom. A $t$-test with two degrees of freedom is a real, valid test, but it is not a well-powered one -- it can only distinguish an effect from noise when the effect is large relative to how much the eight configurations happen to vary, and its $p$-values should be read as a rough indicator of which axes stand out sharply from the rest, not as evidence with the reliability a larger study would provide. This is stated plainly here rather than left implicit, because a very small $p$-value from a two-degrees-of-freedom test looks the same on the page as one from a much larger, better-powered study, and only is not.
+
+As a non-parametric cross-check, a shallow decision tree (limited to three levels) was also fit for each behavioral quantity, to confirm it splits on the same axes the linear model considers important; this does not depend on the small-sample caveat above, since it makes no distributional assumptions, but with only eight training points it should likewise be read as a consistency check rather than as an independently reliable model.
 
 \subsection{Step 6: checking the model with a real intervention}
 \label{sec:validation}
@@ -127,30 +256,66 @@ In total, the pilot consisted of eight ablation configurations run twice each, p
 \section{Results}
 \label{sec:results}
 
-Table~\ref{tab:surrogate} summarizes, for each of the six behavioral quantities from Step 4, which axis the fitted linear model identifies as the dominant driver, how large a share of the variation it accounts for, the direction of the effect, and the model's overall fit ($R^2$) across the eight configuration-level values.
+Table~\ref{tab:surrogate} summarizes, for each of the six behavioral quantities from Step 4, which axis the fitted linear model identifies as the dominant driver, how large a share of the variation it accounts for, the two-sided $p$-value for that axis's coefficient (recall: from a two-degrees-of-freedom test, per Section~\ref{sec:surrogate}), and the model's overall fit ($R^2$) across the eight configuration-level values. Full coefficient tables, with standard errors, for the two quantities discussed in most depth below follow in Tables~\ref{tab:coef-accuracy} and \ref{tab:coef-verbosity}.
 
 \begin{table}[h]
 \centering
 \small
-\caption{Which axis explains which behavioral quantity, according to the fitted linear model.}
+\caption{Which axis explains which behavioral quantity, according to the fitted linear model. $p$ is for the dominant axis's coefficient.}
 \label{tab:surrogate}
-\begin{tabular}{p{3.4cm}p{1.4cm}p{1.5cm}p{4.7cm}p{0.9cm}}
+\begin{tabular}{p{3.3cm}p{1.6cm}p{1.3cm}p{0.9cm}p{4.4cm}p{0.7cm}}
 \toprule
-Behavioral quantity & Dominant axis & Variance share & Direction of effect & $R^2$ \\
+Behavioral quantity & Dominant axis & Var.\ share & $p$ & Direction of effect & $R^2$ \\
 \midrule
-Verbosity (avg.\ proposal length) & Output format & 74\% & full explanations $\to$ roughly 2--4$\times$ longer proposals & 0.96 \\
-Model families tried & Breadth, output, emphasis (tied) & 33\% each & broad$\uparrow$, verbose$\uparrow$, exploit-first$\downarrow$ & 1.00 \\
-Best accuracy reached & Emphasis & 84\% & exploit-first $\to$ +0.0025 mean accuracy & 1.00 \\
-Number of experiments & Stopping, emphasis (tied) & 50\% each & adaptive stopping$\downarrow$, exploit-first$\uparrow$ & 0.67 \\
-Search width & Emphasis & 49\% & exploit-first $\to$ wider spread & 0.83 \\
-Distance to reference trace & Stopping, emphasis (tied) & 50\% each & adaptive stopping$\uparrow$ distance, exploit-first$\downarrow$ distance & 0.67 \\
+Verbosity (avg.\ proposal length) & Output format & 74\% & 0.027 & full explanations $\to$ roughly 2--4$\times$ longer proposals & 0.96 \\
+Model families tried & Breadth, output, emphasis (tied) & 33\% each & $<10^{-29}$ & broad$\uparrow$, verbose$\uparrow$, exploit-first$\downarrow$ & 1.00 \\
+Best accuracy reached & Emphasis & 84\% & $2\times10^{-6}$ & exploit-first $\to$ +0.0025 mean accuracy & 1.00 \\
+Number of experiments & Stopping, emphasis (tied) & 50\% each & 0.29 & adaptive stopping$\downarrow$, exploit-first$\uparrow$ & 0.67 \\
+Search width & Emphasis & 49\% & 0.16 & exploit-first $\to$ wider spread & 0.83 \\
+Distance to reference trace & Stopping, emphasis (tied) & 50\% each & 0.29 & adaptive stopping$\uparrow$ distance, exploit-first$\downarrow$ distance & 0.67 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The first row is, by design, close to a sanity check. The output-format axis directly instructs the agent to write either terse or fully reasoned responses, so finding that it explains 74\% of the variation in how long the agent's stated hypotheses are, with a statistically significant coefficient, is exactly what should happen if the whole pipeline -- from generating the instruction file, through running the loop, logging its steps, parsing them into numbers, and fitting a model -- is working correctly end to end. If some unrelated axis had turned out to dominate verbosity instead, that would have pointed to a bug somewhere in the pipeline rather than a genuine finding. Because this check passes cleanly, it is reasonable to give some credence to the less obvious result that follows.
+The first row is, by design, close to a sanity check. The output-format axis directly instructs the agent to write either terse or fully reasoned responses, so finding that it explains 74\% of the variation in how long the agent's stated hypotheses are is exactly what should happen if the whole pipeline -- from generating the instruction file, through running the loop, logging its steps, parsing them into numbers, and fitting a model -- is working correctly end to end. Table~\ref{tab:coef-verbosity} gives the full picture behind that 74\%: all five coefficients, their standard errors, and their $p$-values. Only the output-format axis reaches conventional significance ($p=0.027$); the other four axes have $p$-values between 0.14 and 0.54 and correspondingly small variance shares, consistent with genuinely having little to do with how long the agent's responses are. If some unrelated axis had turned out to dominate verbosity instead, that would have pointed to a bug somewhere in the pipeline rather than a genuine finding. Because this check passes cleanly, it is reasonable to give some credence to the less obvious result that follows.
 
-That result concerns the emphasis axis, which says nothing about accuracy at all -- it only tells the agent whether to explore several configurations before refining any one of them, or to refine the first promising result immediately. Despite that, it accounts for 84\% of the variation in the best accuracy reached across the eight configurations, with configurations that favor immediate refinement outperforming those that favor broad exploration first by about a quarter of an accuracy percentage point on average. This is a small effect in absolute terms, but a highly consistent one across the design, and it has a plausible explanation: with only two to four experiments available in most of these runs, a strategy that commits early to refining a promising region of the hyperparameter space has less room to waste an experiment exploring a probably-worse region than a strategy that insists on breadth first. It is exactly the kind of effect that would be invisible without decomposing the instruction file into separate axes and measuring each one's contribution directly -- one would otherwise only observe that some instruction files happen to lead to better results than others, without being able to say why.
+\begin{table}[h]
+\centering
+\caption{Full linear-model coefficients for verbosity (average proposal length, in characters). Coefficient is on the $\pm1$-coded axis; a level-0-to-1 change is twice this value. $n=8$, df$_{\text{resid}}=2$.}
+\label{tab:coef-verbosity}
+\begin{tabular}{lrrrr}
+\toprule
+Axis & Coefficient & Std.\ error & $t$ & $p$ \\
+\midrule
+Metric (M) & $-4.16$ & 5.65 & $-0.74$ & 0.538 \\
+Breadth (B) & $+11.56$ & 5.65 & $2.05$ & 0.177 \\
+Stopping (S) & $+13.27$ & 5.65 & $2.35$ & 0.143 \\
+Output format (O) & $+33.44$ & 5.65 & $5.92$ & \textbf{0.027} \\
+Emphasis (E) & $-8.47$ & 5.65 & $-1.50$ & 0.272 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+That result concerns the emphasis axis, which says nothing about accuracy at all -- it only tells the agent whether to explore several configurations before refining any one of them, or to refine the first promising result immediately. Despite that, it accounts for 84\% of the variation in the best accuracy reached across the eight configurations, with configurations that favor immediate refinement outperforming those that favor broad exploration first by about a quarter of an accuracy percentage point on average. Table~\ref{tab:coef-accuracy} gives the full coefficients. Four of the five $p$-values here are extremely small, down to $2\times10^{-6}$ for the emphasis axis -- but this table is exactly the case Section~\ref{sec:surrogate} warned about: with only $n=8$ points and two residual degrees of freedom, the achieved accuracy across these eight configurations happens to vary so little and so consistently with a linear combination of the axes ($R^2 > 0.9999$) that almost any nonzero coefficient comes out looking significant by this test. The $p$-values are real numbers, correctly computed, and it is still true that emphasis stands out from the other four axes by roughly an order of magnitude in both effect size and variance share -- but they should not be read with the confidence a $t$-test at $n=8$ would carry in, say, a clinical trial. The effect is a small one in absolute terms (a quarter of an accuracy percentage point) that is consistent and clearly dominant \emph{within this design}, which is a more modest and more honest claim than "statistically significant at $p<10^{-5}$" makes it sound.
+
+\begin{table}[h]
+\centering
+\caption{Full linear-model coefficients for best cross-validated accuracy reached. Coefficient is on the $\pm1$-coded axis; a level-0-to-1 change is twice this value. $n=8$, df$_{\text{resid}}=2$. See the surrounding text for why these $p$-values should be read cautiously despite their small size.}
+\label{tab:coef-accuracy}
+\begin{tabular}{lrrrr}
+\toprule
+Axis & Coefficient & Std.\ error & $t$ & $p$ \\
+\midrule
+Metric (M) & $-0.000314$ & 0.0000019 & $-168$ & $3.6\times10^{-5}$ \\
+Breadth (B) & $+0.000002$ & 0.0000019 & $1.0$ & 0.423 \\
+Stopping (S) & $-0.000314$ & 0.0000019 & $-168$ & $3.6\times10^{-5}$ \\
+Output format (O) & $-0.000314$ & 0.0000019 & $-168$ & $3.6\times10^{-5}$ \\
+Emphasis (E) & $+0.001252$ & 0.0000019 & $668$ & $2.2\times10^{-6}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+There is a plausible mechanism behind the emphasis effect, small and imprecisely bounded as it is: with only two to four experiments available in most of these runs, a strategy that commits early to refining a promising region of the hyperparameter space has less room to waste an experiment exploring a probably-worse region than a strategy that insists on breadth first. It is exactly the kind of effect that would be invisible without decomposing the instruction file into separate axes and measuring each one's contribution directly -- one would otherwise only observe that some instruction files happen to lead to better results than others, without being able to say why.
 
 The remaining rows are more mechanical but still informative. The breadth axis, unsurprisingly, is one of three tied drivers of how many distinct model families get tried, since it is the axis that permits or forbids trying more than one family in the first place; that the output-format and emphasis axes tie with it suggests that being asked to reason at length, or to explore broadly, also nudges the agent toward trying both families rather than one, even though neither axis mentions model families directly. The number of experiments run is split evenly between the stopping-rule axis, which sets the budget in the first place, and the emphasis axis, which affects how quickly that budget gets used up by determining whether early experiments tend to keep improving or not.
 

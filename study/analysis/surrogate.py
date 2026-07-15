@@ -110,7 +110,11 @@ def run():
 
         results[y_col] = {
             "r_squared": model.rsquared,
+            "df_resid": float(model.df_resid),
             "effects": {axis: float(2 * model.params[axis]) for axis in AXES},
+            "coef": {axis: float(model.params[axis]) for axis in AXES},
+            "std_err": {axis: float(model.bse[axis]) for axis in AXES},
+            "tvalues": {axis: float(model.tvalues[axis]) for axis in AXES},
             "pvalues": {axis: float(model.pvalues[axis]) for axis in AXES},
             "variance_share": {axis: float(shares.get(axis, 0.0)) for axis in AXES},
         }
