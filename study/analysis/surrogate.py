@@ -24,7 +24,6 @@ TARGETS = [
     "n_distinct_models",
     "breadth_spread",
     "mean_proposal_chars",
-    "process_distance_to_human",
 ]
 
 TABLE_PATH = Path(__file__).parent.parent / "encoding" / "behavioral_table.json"
@@ -44,9 +43,15 @@ def load_config_level_table() -> pd.DataFrame:
     # surrogate fit, or the validation stops being held-out.
     design_ids = _design_config_ids()
     df = df[df["config_id"].isin(design_ids)]
-    # average over seeds/repeats per configuration, per Step 3's design
-    agg = df.groupby(["config_id"] + AXES)[TARGETS].mean().reset_index()
-    return agg
+    # Fit on all individual runs (8 configs x 5 seeds = 40 rows) rather than on
+    # the 8 configuration means. Because the design is balanced and orthogonal,
+    # the coefficients (and hence effects and variance shares) are identical to
+    # the means-based fit; what changes is the residual: standard errors, t, p
+    # and R^2 now reflect within-configuration seed scatter, with df_resid=34
+    # instead of 2. NOTE (see report Sec. 5): for purely structural metrics the
+    # 5 seeds of a fixed-budget config are near-identical, so their replication
+    # is weak and their p-values should still be read with that in mind.
+    return df.reset_index(drop=True)
 
 
 def fit_linear_main_effects(df: pd.DataFrame, y_col: str):
@@ -82,7 +87,7 @@ def run():
     report_lines = ["# Surrogate model report (Step 5)\n"]
     report_lines.append(
         "Design: Plackett-Burman resolution III, 5 axes, 8 configurations, "
-        "2 repeats each, averaged over repeats before fitting.\n"
+        "5 repeats each, fit on all 40 individual runs (df_resid=34).\n"
     )
     report_lines.append("Configuration-level table:\n")
     report_lines.append(df.to_string(index=False))

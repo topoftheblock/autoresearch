@@ -5,8 +5,8 @@ Held-out configuration (M=0,B=0,S=0,O=0,E=1 -> "narrow, unspecified metric,
 fixed 3-experiment budget, terse, exploit-first") was NOT among the 8
 Plackett-Burman configurations used to fit the surrogate in Step 5. We use the
 fitted linear surrogate to predict its best_cv_accuracy and n_experiments
-BEFORE running it, then compare against the actually observed values from two
-fresh runs (seeds 2 and 3, not reused from the ablation study).
+BEFORE running it, then compare against the actually observed values from five
+fresh runs (seeds 5-9, not reused from the ablation study).
 """
 import json
 import sys

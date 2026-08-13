@@ -1,40 +1,22 @@
 # From Black-Box to White-Box Understanding of the Autoresearch Loop
 
-## A pilot run of the full 6-step agenda
+## A run of the full 5-step agenda
 
-This report documents one complete pass through the six-step research agenda,
+This report documents one complete pass through the five-step research agenda,
 executed as a real (not simulated) pilot: every experiment number in this
 document came from an actual `RandomForestClassifier` / `GradientBoostingClassifier`
 fit on `sklearn`'s breast-cancer dataset, and every trace is a real transcript
 saved under `results/`. Scope was deliberately kept small (5 axes, 8
-configurations, mostly 2 repeats) to fit a single research session; see
+configurations, 5 repeats each) to fit a single research session; see
 **Limitations** for exactly what a full-scale version would need to add.
 
-Code lives under `study/`: `human_baseline/` (Step 1), `config/` (Step 2),
-`design/` (Step 3), `loop/` (the executor), `encoding/` (Step 4),
-`analysis/` (Step 5), `causal_validation/` (Step 6).
+Code lives under `study/`: `config/` (Step 1), `design/` (Step 2),
+`loop/` (the executor), `encoding/` (Step 3), `analysis/` (Step 4),
+`causal_validation/` (Step 5).
 
 ---
 
-## Step 1 — Human baseline: authored simulation, not a real recording
-
-A genuine human think-aloud trace requires an actual person to perform the
-task under recording — that can't be substituted computationally. At the
-user's explicit request, `human_baseline/` instead contains an **authored
-simulation**: working through the agenda's own example question ("does the
-feature-subsampling ratio affect generalization of a Random Forest on this
-dataset") in the first person, running real experiments against the same
-executor used everywhere else, and writing up the reasoning as a think-aloud
-narrative (`human_baseline/session_narrative.md`), then segmenting it into
-the agenda's 6-item taxonomy (`human_baseline/transcript.json`). Every number
-in it is real; the reasoning process is not — it's a plausible reconstruction,
-not an observation of an actual human. See `human_baseline/README.md` for the
-full disclosure. This trace is used in Step 4/5 to compute a
-process-similarity feature, but should never be read as evidence about real
-human research behavior — only as a structural reference point (how many
-experiments, does the search broaden or narrow, when does it stop).
-
-## Step 2 — program.md as a configuration space
+## Step 1 — program.md as a configuration space
 
 Five two-level axes were chosen (`config/axes.py`), each grounded in a real
 instructional choice: whether the evaluation metric is precise or vague (M),
@@ -47,113 +29,101 @@ the first promising result (E). A single Jinja2 template
 `program.md` files from a 5-bit configuration vector, guaranteeing that two
 variants differ *only* in the axes intentionally varied.
 
-## Step 3 — Ablation instead of random sampling
+## Step 2 — Ablation instead of random sampling
 
 A full 2^5 factorial is 32 runs; instead, `design/doe.py` generates the
 classical 8-run Plackett-Burman design (cyclic construction from the base row
 `+ + + - + - -`, standard since Plackett & Burman 1946), giving a resolution-III
 design: every main effect is estimable and unconfounded with every other main
 effect, at the cost of confounding with two-way interactions. Each of the 8
-configurations was run with 2 repeats (seeds 0 and 1) to get a first read on
-the loop's own stochastic variance — the agenda recommends 3-5; 2 was the
-budget here.
+configurations was run with 5 repeats (seeds 0-4) to get a solid read on
+the loop's own stochastic variance — at the upper end of the agenda's
+recommended 3-5.
 
-## Step 4 — Behavioral encoding
+## Step 3 — Behavioral encoding
 
 Because the loop already emits structured JSON per step, segmentation into
 the action taxonomy was mechanical (`encoding/features.py`), not LLM-assisted
-classification of free text. Six behavioral features were computed per run:
+classification of free text. Five behavioral features were computed per run:
 `n_experiments`, `n_distinct_models` (how many of {RF, GBM} were actually
 tried), `breadth_spread` (range of `n_estimators` values tried, a proxy for
-search breadth), `best_cv_accuracy` (product quality), `mean_proposal_chars`
-(a crude verbosity proxy), and `process_distance_to_human` (normalized edit
-distance between a run's coarse action sequence and the Step 1 reference
-trace's, via `encoding/human_distance.py`). The full table is
+search breadth), `best_cv_accuracy` (product quality), and `mean_proposal_chars`
+(a crude verbosity proxy). The full table is
 `encoding/behavioral_table.json`.
 
-## Step 5 — Surrogate model (the white box)
+## Step 4 — Surrogate model (the white box)
 
 `analysis/surrogate.py` fits, for every behavioral feature, a linear
 main-effects model on the +/-1-coded axes (orthogonal by construction, so
 each coefficient is directly a variance share) and a depth-3 decision tree as
-a non-parametric cross-check. Full output: `analysis/surrogate_report.txt`.
+a non-parametric cross-check. The model is fit on all **40 individual runs**
+(8 configs × 5 seeds), not the 8 configuration means, giving df_resid=34.
+Because each run is an **independent `gpt-4o-mini` call** (fresh conversation,
+temperature > 0), every metric varies genuinely seed-to-seed, so all p-values
+are honest — no pseudoreplication. Full output: `analysis/surrogate_report.txt`.
 
-Headline findings from this pilot (**5 axes, 8 configs, N=16 runs — read as
-suggestive, not confirmatory**):
+Headline findings (**5 axes, 8 configs, N=40 runs, real gpt-4o-mini agent**):
 
-| Behavioral feature | Dominant axis | Variance share | Direction |
-|---|---|---|---|
-| `mean_proposal_chars` (verbosity) | **O** (output format) | 74% | verbose → ~2-4x longer proposals |
-| `n_distinct_models` (breadth of model families tried) | **B, O, E** (tied) | 33% each | broad↑, verbose↑, exploit-first↓ |
-| `best_cv_accuracy` | **E** (emphasis) | 84% | exploit-first → +0.0025 mean accuracy |
-| `n_experiments` | **S, E** (tied) | 50% each | adaptive stopping↓, exploit-first↑ |
-| `process_distance_to_human` | **S, E** (tied) | 50% each | adaptive stopping↑ distance, exploit-first↓ distance |
+| Behavioral feature | Dominant axis | Variance share | R² | Direction |
+|---|---|---|---|---|
+| `mean_proposal_chars` (verbosity) | **O** (output format) | 94% | 0.77 | verbose → ~1.8x longer proposals (p=6e-12) |
+| `n_experiments` | **S** (stopping) | 95% | 0.62 | adaptive budget → more experiments, +2.4 (p=2e-8) |
+| `n_distinct_models` (model families tried) | **B** (breadth) | 61% | 0.61 | broad permission → more families (p=2e-6) |
+| `breadth_spread` (search width) | **E** (emphasis) | 63% | 0.30 | exploit-first → narrower (p=0.005) |
+| `best_cv_accuracy` | **none** | — | **0.03** | **no axis moves it; agent lands ~0.96 regardless** |
 
-Two things are worth flagging honestly. First, `O → verbosity` is close to a
-sanity check by construction (the axis literally instructs verbosity) — its
-clean 74% share is evidence the whole pipeline (template → loop → parser →
-surrogate) correctly recovers a known ground truth, which is exactly what you
-want before trusting it on the less obvious findings. Second,
-`E → best_cv_accuracy` is the more interesting, non-obvious result: in this
-small hyperparameter space, immediately refining a promising configuration
-outperformed breadth-first exploration, on average, by about a quarter of a
-percentage point of cross-validated accuracy — small, but the surrogate
-attributes 84% of the (also small) between-configuration variance to it.
+Two things worth flagging honestly. First, `O → verbosity` is a sanity check
+by construction (the axis literally instructs verbosity) — its clean 94% share,
+now a genuine p=6e-12 result on independent runs, shows the whole pipeline
+recovers a known ground truth. **Second, and the real headline: the outcome
+(`best_cv_accuracy`) is NOT controlled by any instruction axis** (R²=0.03,
+every p≥0.45). The instruction file steers *how the agent works* — how verbose,
+how many experiments, how many families, how wide — but not *how well it does*.
+An earlier version of this study, with the agent's proposals **authored in
+advance** instead of generated live, reported the opposite (emphasis → accuracy,
+80%); that finding was an artifact of the hand-written policy and vanished the
+moment a real model drove the loop.
 
-## Step 6 — Causal validation
+## Step 5 — Causal validation
 
 A configuration outside the 8-run design (`M0-B0-S0-O0-E1`: narrow model
 family, unspecified metric, fixed 3-experiment budget, terse, exploit-first)
-was held out. Before running it, the Step 5 surrogate predicted
-`best_cv_accuracy ≈ 0.9648` and `n_experiments ≈ 3.25`. Two fresh runs (seeds
-2 and 3, never used in the ablation) then actually executed this
-configuration for real. Observed: `best_cv_accuracy = 0.9610`,
-`n_experiments = 3.0` exactly.
+was held out. Before running it, the Step 4 surrogate predicted
+`n_experiments ≈ 2.95` and `best_cv_accuracy ≈ 0.9609`. Five fresh runs (seeds
+5-9, never used in the ablation) then actually executed this
+configuration for real. Observed: `n_experiments = 3.0`,
+`best_cv_accuracy = 0.9633`.
 
-`n_experiments` was predicted almost exactly — S=0 (fixed budget) is a strong
-and correctly-identified deterministic driver. `best_cv_accuracy` missed by
-about 0.0038 (roughly 0.4 accuracy points), overestimating the benefit of
-exploit-first. Per the agenda's own framing, this is not a failure of the
-method: a resolution-III design cannot see interaction terms, and the miss is
-itself evidence that E's effect on accuracy is not purely additive — it likely
-interacts with B or S. The honest reading is: *the surrogate correctly
-identifies which axis matters most for a given behavior, but a full-scale
-version needs a resolution-IV (or full factorial) design before the
-magnitude of E's effect can be trusted quantitatively.* Full numbers:
-`causal_validation/validation_result.json`.
+The two predictions land very differently, and that's the point.
+`n_experiments` was predicted almost exactly (2.95 vs 3.00) — the stopping-rule
+axis is a strong, correctly-identified driver, and this is a real checkable
+claim about an unseen run that held. The `best_cv_accuracy` prediction is
+**uninformative, and honestly so**: the accuracy surrogate has R²=0.03, so its
+0.9609-vs-0.9633 "hit" is meaningless — both are just "about 0.96," where every
+config lands. Validation thus confirms the part of the model that carries
+signal (process) and refuses to trust the part that doesn't (outcome). Full
+numbers: `causal_validation/validation_result.json`.
 
 ## Limitations (read before treating any number above as a finding)
 
-1. **The human baseline is authored, not recorded** (see Step 1 above) —
-   `process_distance_to_human` is computed and behaves sensibly (tracks the
-   same S/E split as `n_experiments`), but it measures similarity to an
-   invented reference, not to real human behavior. Replacing it with an
-   actual recorded session is still the top priority follow-up.
-2. **The acting "agent" was this same Claude Code session, not an independent
-   fresh-context LLM call per run.** I acted as the research agent for every
-   one of the 18 runs, deliberately trying to follow only what each
-   rendered `program.md` said. But I already knew, throughout, that this was
-   an ablation study and roughly what each axis was meant to do — a real
-   confound against a fresh API call that only ever sees the rendered
-   `program.md` and nothing else. Before trusting any effect size here,
-   rerun the same design with an independent `ANTHROPIC_API_KEY`-driven
-   process per run (the harness in `loop/` is already structured to make
-   that swap easy — only the "who decides the next action" part needs to
-   change from me to a subprocess/API call).
-3. **Small N.** 2 repeats per configuration (agenda recommends 3-5); 8
-   configurations (resolution III, no interactions estimable). Both were
-   deliberately reduced to fit a single sitting.
-4. **One dataset, one small hyperparameter menu.** Effects found here are
-   scoped to breast-cancer + a handful of RF/GBM hyperparameters; generalizing
-   to "random forests and gradient boosting" broadly would need more datasets.
+1. **One specific, small model.** The agent was OpenAI `gpt-4o-mini`, called
+   fresh per run via `loop/agent_runner_llm.py` (independent conversation, no
+   memory across runs) — the confound of a scripted/self-aware stand-in is
+   gone. What remains is model specificity: everything here, **especially the
+   accuracy null**, is a property of `gpt-4o-mini` on this task. A larger model
+   might search differently or show accuracy effects this one doesn't.
+2. **The accuracy null may be partly the task.** Breast-cancer is easy enough
+   that almost any reasonable tree-ensemble hits ~0.96, so there's little
+   headroom for an instruction to move the outcome even in principle. A harder
+   task might restore an effect.
+3. **Small N.** 8 configurations (resolution III, no interactions estimable),
+   5 repeats each.
 
 ## What to do next, in order
 
-1. Record an actual human baseline (think-aloud, screen recording, Whisper
-   transcription) to replace `human_baseline/`'s authored simulation, then
-   recompute `process_distance_to_human` against the real trace.
-2. Swap the loop's decision-maker from me to independent API calls, and
-   re-run the same 8-config design to check whether the effects above
-   replicate without the self-study confound.
-3. Move to a resolution-IV design or full 32-run factorial once repeats are
-   cheap, to estimate the B×E / S×E interactions that Step 6 flagged.
+1. Re-run the identical design across several different models, to see which
+   effects (and which nulls) are stable vs. specific to `gpt-4o-mini`.
+2. Move to a resolution-IV design or full 32-run factorial to estimate
+   axis interactions.
+3. Repeat on harder tasks with real outcome headroom, to test whether the
+   accuracy null is a property of the agent or just an easy benchmark.

@@ -1,16 +1,17 @@
 {
   "held_out_config": {"M": 0, "B": 0, "S": 0, "O": 0, "E": 1},
+  "agent": "openai gpt-4o-mini (independent per-run calls, loop/agent_runner_llm.py)",
   "predictions_made_before_running": {
-    "best_cv_accuracy": 0.96480,
-    "n_experiments": 3.25
+    "best_cv_accuracy": 0.96092,
+    "n_experiments": 2.95
   },
-  "observed_after_running_seeds_2_and_3": {
-    "best_cv_accuracy": 0.961045,
+  "observed_after_running_seeds_5_to_9": {
+    "best_cv_accuracy": 0.96330,
     "n_experiments": 3.0
   },
   "discrepancy": {
-    "best_cv_accuracy": -0.003755,
-    "n_experiments": -0.25
+    "best_cv_accuracy": 0.00238,
+    "n_experiments": 0.05
   },
-  "verdict": "n_experiments prediction essentially exact (fixed_budget axis S=0 dominates and was correctly identified as the sole driver). best_cv_accuracy prediction missed by ~0.0038 (about 0.4 accuracy points) in the direction of overestimating the benefit of exploit_first (E=1); since the main-effects-only surrogate cannot see interactions, and E's effect was estimated from configs that also varied other axes, this discrepancy is evidence that E's true effect on best_cv_accuracy is not purely additive - it likely interacts with B (breadth) or S (stopping budget), which a resolution-III design confounds away. This is the kind of informative miss the agenda anticipates: it points back at Step 2/5 (add an M-x-E or B-x-E interaction term, or run a resolution-IV+ design) rather than invalidating the method."
+  "verdict": "n_experiments prediction essentially exact (2.95 predicted vs 3.00 observed): the stopping-rule axis S=0 (fixed budget) was correctly identified as the driver of how much research happens, and the prediction held on an unseen run. The best_cv_accuracy prediction is uninformative and honestly so: with a real gpt-4o-mini agent the accuracy surrogate has R^2=0.03 and no significant axis, so its 0.96092-vs-0.96330 agreement is not evidence of anything -- both are just 'about 0.96', the ceiling every configuration reaches on this dataset. The validation step confirms the process part of the model (which carries real signal) and declines to trust the outcome part (which does not). This replaces the earlier authored-proposal result, which had reported an emphasis-driven accuracy effect that did not survive putting a real model in the loop."
 }
