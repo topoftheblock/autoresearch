@@ -1,0 +1,9 @@
+# Pinned to the versions in the project-local virtual environment.
+# The loop issues HTTP requests through the standard-library urllib module, so
+# there is no vendor SDK dependency.
+scikit-learn==1.9.0
+statsmodels==0.14.6
+numpy==2.5.2
+pandas==3.0.5
+scipy==1.18.0
+Jinja2==3.1.6
