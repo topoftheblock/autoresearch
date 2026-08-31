@@ -176,62 +176,131 @@ I fit by ordinary least squares on the individual runs, not the cell means. Bala
 \\subsection\{Results\}\
 \\label\{sec:results\}\
 \
+% PROVISIONAL -- delete this paragraph once the five outstanding cells are run.\
+\\emph\{Provisional note.\} The estimates below are computed on $1185$ of the $1280$ runs.\
+Five of the sixty-four cells, all on Wine and all at $M\{=\}1,B\{=\}1$, are short: four are\
+empty and one holds five of twenty replicates, an API request quota having been reached\
+before they executed. The design is therefore not exactly balanced as described in\
+Section~\\ref\{sec:setup\}, and because the gap is structured rather than random the $M$ and\
+$B$ estimates are the ones to treat with most caution. Every other cell holds its full\
+twenty replicates.\
+\
 \\begin\{table\}[t]\
 \\centering\
 \\small\
-\\caption\{Main-effect estimates $2\\hat\\beta_i$ per metric from equation~\\eqref\{eq:regression\}, with heteroskedasticity-consistent standard errors and Benjamini--Hochberg adjusted $p$-values. The $\\hat\\gamma$ column is the fitted dataset fixed effect (Wine relative to Breast Cancer). \\textbf\{[PLACEHOLDER: populate from \\texttt\{regression\\_main.csv\}.]\}\}\
+\\caption\{Main-effect estimates $2\\hat\\beta_i$ per metric from equation~\\eqref\{eq:regression\}, with heteroskedasticity-consistent standard errors and Benjamini--Hochberg adjusted $p$-values. The $\\hat\\gamma$ column is the fitted dataset fixed effect (Wine relative to Breast Cancer).\}\
 \\label\{tab:main\}\
 \\begin\{tabular\}\{lrrrrrrr\}\
 \\toprule\
 Metric & $M$ & $B$ & $S$ & $O$ & $E$ & $\\hat\\gamma$ & $R^2$ \\\\\
 \\midrule\
-Gain over default   & -- & -- & -- & -- & -- & -- & -- \\\\\
-Wasted trial ratio  & -- & -- & -- & -- & -- & -- & -- \\\\\
-Improvement rate    & -- & -- & -- & -- & -- & -- & -- \\\\\
-Cost to best        & -- & -- & -- & -- & -- & -- & -- \\\\\
+Gain over default   & +0.001 & -0.001 & +0.001$^\{**\}$ & -0.000 & +0.000 & -0.001$^\{***\}$ & 0.034 \\\\\
+Wasted trial ratio  & -0.023$^\{***\}$ & -0.034$^\{***\}$ & +0.046$^\{***\}$ & -0.075$^\{***\}$ & +0.005 & -0.003 & 0.158 \\\\\
+Improvement rate    & +0.006 & -0.028$^\{*\}$ & +0.032$^\{*\}$ & +0.005 & +0.018 & -0.066$^\{***\}$ & 0.046 \\\\\
+Cost to best        & +0.05 & -0.03 & +0.04 & -0.01 & -0.10 & -0.21$^\{***\}$ & 0.025 \\\\\
 \\bottomrule\
 \\end\{tabular\}\
 \\end\{table\}\
 \
 \\begin\{figure\}[t]\
 \\centering\
-\\framebox[\\linewidth]\{\\rule\{0pt\}\{5cm\}\\parbox\{0.85\\linewidth\}\{\\centering\\small\
-\\textbf\{[PLACEHOLDER FIGURE]\}\\\\[4pt]\
-Coefficient plot: $2\\hat\\beta_i$ with confidence intervals, one panel per metric,\
-estimated with the dataset fixed effect partialled out, so the size of each\
-component's effect can be read off directly and compared across metrics.\}\}\
-\\caption\{Estimated component effects on every metric. \\textbf\{[PLACEHOLDER.]\}\}\
+\\begin\{tikzpicture\}[font=\\scriptsize]\
+\\begin\{groupplot\}[\
+  group style=\{group size=2 by 2, horizontal sep=1.85cm, vertical sep=1.5cm\},\
+  width=6.0cm, height=3.9cm,\
+  y dir=reverse, ytick=\{1,2,3,4,5\},\
+  yticklabels=\{$M$,$B$,$S$,$O$,$E$\},\
+  ymin=0.45, ymax=5.55,\
+  ymajorgrids, major grid style=\{gray!22, dotted\},\
+  axis line style=\{gray!55\}, tick align=outside, tick pos=left,\
+  every tick/.style=\{gray!55\},\
+  title style=\{font=\\scriptsize\\bfseries, yshift=-1pt\},\
+  scaled x ticks=false,\
+]\
+\\nextgroupplot[title=\{Gain over default\}, xmin=-0.00187, xmax=0.00187,\
+  xtick=\{-0.001,0.000,0.001\}, xticklabel style=\{/pgf/number format/fixed,\
+    /pgf/number format/precision=3, /pgf/number format/fixed zerofill\},]\
+\\addplot[gray!70, dashed, forget plot] coordinates \{(0,0.45) (0,5.55)\};\
+\\addplot[only marks, mark=*, mark size=1.6pt, black, thick,\
+  error bars/.cd, x dir=both, x explicit, error bar style=\{black\}]\
+  coordinates \{(0.001046,3) +- (0.000623,0)\};\
+\\addplot[only marks, mark=o, mark size=1.6pt, black, thick,\
+  error bars/.cd, x dir=both, x explicit, error bar style=\{black\}]\
+  coordinates \{(0.000562,1) +- (0.000631,0) (-0.000682,2) +- (0.000622,0) (-0.000031,4) +- (0.000622,0) (0.000077,5) +- (0.000622,0)\};\
+\\nextgroupplot[title=\{Wasted trial ratio\}, xmin=-0.09869, xmax=0.09869,\
+  xtick=\{-0.050,0.000,0.050\}, xticklabel style=\{/pgf/number format/fixed,\
+    /pgf/number format/precision=3, /pgf/number format/fixed zerofill\},]\
+\\addplot[gray!70, dashed, forget plot] coordinates \{(0,0.45) (0,5.55)\};\
+\\addplot[only marks, mark=*, mark size=1.6pt, black, thick,\
+  error bars/.cd, x dir=both, x explicit, error bar style=\{black\}]\
+  coordinates \{(-0.023000,1) +- (0.012707,0) (-0.033521,2) +- (0.012810,0) (0.045844,3) +- (0.013120,0) (-0.075328,4) +- (0.012785,0)\};\
+\\addplot[only marks, mark=o, mark size=1.6pt, black, thick,\
+  error bars/.cd, x dir=both, x explicit, error bar style=\{black\}]\
+  coordinates \{(0.004728,5) +- (0.012829,0)\};\
+\\nextgroupplot[title=\{Improvement rate\}, xlabel=\{$2\\hat\\beta$\}, xmin=-0.05933, xmax=0.05933,\
+  xtick=\{-0.025,0.000,0.025\}, xticklabel style=\{/pgf/number format/fixed,\
+    /pgf/number format/precision=3, /pgf/number format/fixed zerofill\},]\
+\\addplot[gray!70, dashed, forget plot] coordinates \{(0,0.45) (0,5.55)\};\
+\\addplot[only marks, mark=*, mark size=1.6pt, black, thick,\
+  error bars/.cd, x dir=both, x explicit, error bar style=\{black\}]\
+  coordinates \{(-0.027694,2) +- (0.021429,0) (0.031525,3) +- (0.021445,0)\};\
+\\addplot[only marks, mark=o, mark size=1.6pt, black, thick,\
+  error bars/.cd, x dir=both, x explicit, error bar style=\{black\}]\
+  coordinates \{(0.006160,1) +- (0.021524,0) (0.004528,4) +- (0.021270,0) (0.017861,5) +- (0.021266,0)\};\
+\\nextgroupplot[title=\{Cost to best\}, xlabel=\{$2\\hat\\beta$\}, xmin=-0.21114, xmax=0.21114,\
+  xtick=\{-0.10,0.00,0.10\}, xticklabel style=\{/pgf/number format/fixed,\
+    /pgf/number format/precision=2, /pgf/number format/fixed zerofill\},]\
+\\addplot[gray!70, dashed, forget plot] coordinates \{(0,0.45) (0,5.55)\};\
+\\addplot[only marks, mark=o, mark size=1.6pt, black, thick,\
+  error bars/.cd, x dir=both, x explicit, error bar style=\{black\}]\
+  coordinates \{(0.048821,1) +- (0.089583,0) (-0.026179,2) +- (0.089277,0) (0.038174,3) +- (0.088037,0) (-0.014321,4) +- (0.088193,0) (-0.100988,5) +- (0.087531,0)\};\
+\\end\{groupplot\}\
+\\end\{tikzpicture\}\
+\\caption\{Estimated component effects on every metric. Points are $2\\hat\\beta_i$ from\
+equation~\\eqref\{eq:regression\}, bars are $95\\%$ intervals built from\
+heteroskedasticity-consistent standard errors, and a filled point marks an effect that\
+survives Benjamini--Hochberg adjustment at $0.05$. The dataset fixed effect is in the\
+model, so these are within-task effects. The four panels carry independent horizontal\
+scales, the metrics being in different units.\}\
 \\label\{fig:coefficients\}\
 \\end\{figure\}\
 \
-Table~\\ref\{tab:main\} gives the main-effect estimates and Figure~\\ref\{fig:coefficients\} plots them with their intervals. \\textbf\{[PLACEHOLDER: for each of the four metrics, say which component dominates and by how much, and whether the gain over default and the cost to best point at the same components.]\}\
+Table~\\ref\{tab:main\} gives the main-effect estimates and Figure~\\ref\{fig:coefficients\} plots them with their intervals. The four metrics do not answer to the same components. The wasted trial ratio is the one the instruction file really governs: four of the five components move it, and the reporting style dominates at $2\\hat\\beta_O=-0.075$ against a mean of $0.070$, so demanding full sentences very nearly removes the wasted turn. Search breadth ($-0.034$) and the evaluation criterion ($-0.023$) pull the same way, while the adaptive stopping rule pushes back ($+0.046$), which is what a rule that buys extra turns should do when some of those turns repeat earlier proposals. This is also the only metric the design explains to any real extent, at $R^2=0.16$.\
 \
-Table~\\ref\{tab:interactions\} gives the two-way interactions. \\textbf\{[PLACEHOLDER: say whether the components act independently, and name any pair whose interaction rivals a main effect in size.]\}\
+The two outcome metrics answer to the stopping rule and little else. It is the only component with a credible effect on the gain over default ($+0.001$, adj.\\ $p=0.005$), and it raises the improvement rate by $0.032$, where the one other mover is search breadth at $-0.028$. The cost to best answers to nothing: no component survives adjustment, and the largest estimate, exploit-first at $-0.10$, carries adj.\\ $p=0.12$. So the gain over default and the cost to best do \\emph\{not\} point at the same components, and the instruction file turns out to govern how tidily the loop spends its turns far more than what those turns find.\
+\
+Against all of this the task matters more than any component. Moving from Breast Cancer to Wine shifts the improvement rate by $-0.066$ and the cost to best by $-0.21$, each an order of magnitude larger than the largest component effect on the same metric and each at $p<10^\{-5\}$. That is exactly the variation equation~\\eqref\{eq:regression\} holds fixed; left in the residual it would have inflated every standard error above.\
+\
+Table~\\ref\{tab:interactions\} gives the two-way interactions. Of the forty estimated across the four metrics, three survive adjustment, and all three sit on the wasted trial ratio and all three involve the reporting style: $S\\times O$ at $-0.031$, $B\\times O$ at $+0.018$ and $O\\times E$ at $-0.016$. Only the first rivals a main effect in size, and it says that verbose reporting and the adaptive budget substitute for one another rather than compound: whichever is present removes most of the waste, and adding the second buys little. Everywhere else the components act independently. That is the answer to RQ2, and it is measured rather than assumed only because the factorial is complete.\
 \
 \\begin\{table\}[t]\
 \\centering\
 \\small\
-\\caption\{Two-way interaction estimates $2\\hat\\beta_\{ij\}$ from equation~\\eqref\{eq:interaction\}, and compliance rates per component. \\textbf\{[PLACEHOLDER.]\}\}\
+\\caption\{Two-way interaction estimates $2\\hat\\beta_\{ij\}$ from equation~\\eqref\{eq:interaction\}, and compliance per component. The four interactions with the smallest adjusted $p$ are\
+shown; compliance is given as level $0$ / level $1$. Stars mark adjusted $p<0.05$ ($^\{*\}$),\
+$<0.01$ ($^\{**\}$) and $<0.001$ ($^\{***\}$).\}\
 \\label\{tab:interactions\}\
 \\begin\{tabular\}\{lrr@\{\\hskip 1.2cm\}lr\}\
 \\toprule\
 Interaction & Estimate & adj.\\ $p$ & Component & Compliance \\\\\
 \\midrule\
-$M \\times B$ & -- & -- & $B$ & -- \\\\\
-$M \\times S$ & -- & -- & $S$ & -- \\\\\
-$B \\times S$ & -- & -- & $E$ & -- \\\\\
-$S \\times E$ & -- & -- & $O$ & -- / -- chars \\\\\
-\\ldots        & -- & -- & $M$ & not observable \\\\\
+$S \\times O$ (wasted trial ratio) & -0.031 & 0.000 & $B$ & 0.66 / 0.83 \\\\\
+$B \\times O$ (wasted trial ratio) & +0.018 & 0.016 & $S$ & 0.89 / 0.20 \\\\\
+$O \\times E$ (wasted trial ratio) & -0.016 & 0.024 & $E$ & 0.88 / 0.70 \\\\\
+$M \\times B$ (wasted trial ratio) & -0.012 & 0.122 & $O$ & 204 / 385 chars \\\\\
+ &  &  & $M$ & not observable \\\\\
 \\bottomrule\
 \\end\{tabular\}\
 \\end\{table\}\
 \
-An instruction is not always obeyed. Table~\\ref\{tab:interactions\} therefore also reports the share of runs whose behaviour actually matched the instruction given, so I can tell a component that had no effect from one the model ignored. Three components constrain an observable action and admit a mechanical check: $B$ by the number of model families the run proposes, $S$ by the number of experiments it performs, $E$ by whether its second proposal refines the first. $O$ constrains wording rather than action, so it gets a manipulation check instead, the mean characters of hypothesis and interpretation text per run at each level. $M$ leaves no behavioural trace at all, because the executor computes the score whatever the instruction says. \\textbf\{[PLACEHOLDER.]\}\
+An instruction is not always obeyed. Table~\\ref\{tab:interactions\} therefore also reports the share of runs whose behaviour actually matched the instruction given, so I can tell a component that had no effect from one the model ignored. Three components constrain an observable action and admit a mechanical check: $B$ by the number of model families the run proposes, $S$ by the number of experiments it performs, $E$ by whether its second proposal refines the first. $O$ constrains wording rather than action, so it gets a manipulation check instead, the mean characters of hypothesis and interpretation text per run at each level. $M$ leaves no behavioural trace at all, because the executor computes the score whatever the instruction says. The manipulation check is clean: level $1$ nearly doubles the prose, $385$ characters against $204$. Obedience elsewhere is partial and uneven. The fixed budget is honoured in $89\\%$ of runs but the adaptive rule in only $20\\%$, so the stopping-rule effects above are the effect of \\emph\{offering\} an adaptive budget, not of a loop that reliably stops on diminishing returns. Search breadth is honoured in $66\\%$ of narrow runs and $83\\%$ of broad ones, and exploit-first in $70\\%$. Every component effect reported here is therefore an intention-to-treat estimate, attenuated towards zero by the runs that ignored the instruction; the underlying effect of a followed instruction is larger than the table shows.\
 \
 \\subsection\{Discussion and further considerations\}\
 \\label\{sec:discussion\}\
 \
-\\textbf\{[PLACEHOLDER: read the recovered effect structure. Say which components govern the gain over default, the wasted trial ratio, the improvement rate and the cost to best, how large each effect is, and whether any pair of components interacts strongly enough to matter.]\}\
+The recovered structure is narrow and lopsided. Process is governed, outcome is barely touched. The wasted trial ratio moves under four of the five components, led by reporting style at $-0.075$ on a mean of $0.070$; the gain over default moves only under the stopping rule, and by $+0.001$ on an accuracy scale, which is real but negligible next to the $-0.0014$ the choice of task contributes; the improvement rate moves under the stopping rule ($+0.032$) and search breadth ($-0.028$); the cost to best moves under nothing that survives adjustment. Only one interaction, $S\\times O$ at $-0.031$, is large enough to matter, and it is a substitution rather than a synergy.\
+\
+Two readings follow. First, the instruction file is a control on conduct, not on results: asking the loop to explain itself, or widening what it may compare, changes how many turns it wastes, but no wording tested here made it find a materially better model. Second, the ceiling is low because the task is easy. Untuned defaults already reach $a_0=0.960$ on both datasets, and $41\\%$ of runs improve on that at all, so there is little headroom for an instruction to exploit; the effects reported here are effects on the approach to a ceiling, not on the height reached.\
 \
 Three limitations bound what any of this shows. Everything is conditional on one agent model, so I have measured how instructions act on one policy, not a property of instructions at large. Each level is realised by a single generated paragraph, which leaves the effect of a component's level tangled with the effect of its particular wording; read the results as effects of specific instruction texts. And the tasks are tabular classification problems over a small discrete hyperparameter space. Whether the same effect structure appears in loops that search over code, or over open-ended hypotheses, is outside what this design can reach.\
 \
@@ -241,6 +310,6 @@ Three limitations bound what any of this shows. Everything is conditional on one
 \
 In an autoresearch loop, \\texttt\{program.md\} does the job that controller code does in ordinary software, but you cannot read it the way you read code. So I treated it as a configuration vector. Five components of \\texttt\{program.md\} were written at two levels each, all $2^5=32$ configurations were generated and run against a real executor on two datasets with twenty replicates apiece, and the resulting behaviour was reduced to four outcome metrics and regressed on an orthogonal $\\pm1$ coding of the components. Because I built the configurations instead of collecting them, the coefficients can be read causally. Because the factorial is complete, whether the components interact is something I can test rather than assume.\
 \
-\\textbf\{[PLACEHOLDER: one paragraph on which components drove which behaviour, how large those effects were, and whether the components turned out to act independently.]\}\
+What the components drove was process, not result. Reporting style was the strongest lever anywhere in the design, cutting the wasted trial ratio by $0.075$ against a mean of $0.070$; search breadth and the evaluation criterion moved the same metric by $-0.034$ and $-0.023$; the stopping rule was the only component to touch either outcome metric, worth $+0.001$ on the gain over default and $+0.032$ on the improvement rate; and nothing at all determined the cost to best. The components turned out to act very nearly independently: three of forty two-way interactions survived adjustment, all on the wasted trial ratio and all involving reporting style, and only $S\\times O$ approached the size of a main effect. Set against a dataset fixed effect that was an order of magnitude larger on two metrics, the honest summary is that on tasks this easy the instruction file shapes how the loop searches far more than what it finds.\
 \
 The method is not tied to the five components I happened to vary. Any instruction file that can be cut into slots can be studied the same way, and full enumeration stays cheap while the number of slots is small. Two follow-ups are worth doing. Sampling several wordings per level would separate a component from its phrasing, which is the sharpest limitation above. Running the procedure on a loop that edits code, not hyperparameters, would test it where the instruction file carries far more of the system's behaviour.}

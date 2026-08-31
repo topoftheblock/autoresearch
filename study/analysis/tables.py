@@ -58,8 +58,11 @@ def interaction_table(inter, comp, k=4):
     """Body rows of tab:interactions: the k largest |2*beta_ij|, and compliance."""
     d = inter[(inter.window == "window") & (inter.kind == "treatment")
               & (inter.metric.isin(ORDER))].copy()
+    # Rank by adjusted significance, not raw magnitude: the four metrics live on
+    # different scales, so |2*beta| is not comparable across them and would just
+    # surface whichever metric has the largest units.
     d["abs"] = d.estimate.abs()
-    top = d.sort_values("abs", ascending=False).head(k)
+    top = d.sort_values(["p_adj", "abs"], ascending=[True, False]).head(k)
 
     rows_i = []
     for _, r in top.iterrows():
@@ -89,45 +92,78 @@ def interaction_table(inter, comp, k=4):
     return "\n".join(out)
 
 
-def coefficient_plot(main, w=5.3, h=3.0, pad=0.55):
-    """Figure fig:coefficients as native TikZ: 2*beta with 95% CIs, one panel per metric.
+def _nice(x):
+    """Largest round tick value (1, 2, 2.5 or 5 x 10^k) not exceeding x.
 
-    Drawn rather than plotted so the paper gains no new Python dependency; every
-    coordinate comes from regression_main.csv. The dataset fixed effect is in the
-    model, so these are within-task effects.
+    Rounds down, not up: an outer tick placed beyond the data extent lands flush
+    against the axis edge and pgfplots silently drops the label.
+    """
+    import math
+    if x <= 0:
+        return 0.0
+    e = math.floor(math.log10(x))
+    f = x / 10 ** e
+    for c in (5, 2.5, 2, 1):
+        if f >= c:
+            return c * 10 ** e
+    return 10 ** (e - 1) * 5
+
+
+def coefficient_plot(main, ci=1.96):
+    """Figure fig:coefficients as a pgfplots forest plot: 2*beta with 95% CIs.
+
+    One panel per metric, five components per panel, a zero reference line, and
+    a filled marker where the effect survives Benjamini-Hochberg adjustment.
+    The panels carry independent horizontal scales because the four metrics are
+    in different units; the caption says so. Every coordinate comes from
+    regression_main.csv, so the figure cannot drift from the estimates.
     """
     d = main[(main.window == "window") & (main.kind == "treatment")]
-    L = [r"\begin{tikzpicture}[font=\scriptsize]"]
-    for k, m in enumerate(ORDER):
+    metrics = [m for m in ORDER if not d[d.metric == m].empty]
+
+    L = [r"\begin{tikzpicture}[font=\scriptsize]",
+         r"\begin{groupplot}[",
+         r"  group style={group size=2 by 2, horizontal sep=1.85cm, vertical sep=1.5cm},",
+         r"  width=6.0cm, height=3.9cm,",
+         r"  y dir=reverse, ytick={1,2,3,4,5},",
+         r"  yticklabels={$M$,$B$,$S$,$O$,$E$},",
+         r"  ymin=0.45, ymax=5.55,",
+         r"  ymajorgrids, major grid style={gray!22, dotted},",
+         r"  axis line style={gray!55}, tick align=outside, tick pos=left,",
+         r"  every tick/.style={gray!55},",
+         r"  title style={font=\scriptsize\bfseries, yshift=-1pt},",
+         r"  scaled x ticks=false,",
+         r"]"]
+
+    for m in metrics:
         sub = d[d.metric == m].set_index("term")
-        if sub.empty:
-            continue
-        ox, oy = (k % 2) * (w + 1.5), -(k // 2) * (h + 1.3)
         est = [sub.loc[f"X_{a}", "estimate"] for a in AXES]
-        se = [sub.loc[f"X_{a}", "std_err"] for a in AXES]
-        lo = [e - 1.96 * s_ for e, s_ in zip(est, se)]
-        hi = [e + 1.96 * s_ for e, s_ in zip(est, se)]
-        xmin, xmax = min(lo + [0]), max(hi + [0])
-        span = (xmax - xmin) or 1.0
-        xmin, xmax = xmin - .08 * span, xmax + .08 * span
-        span = xmax - xmin
-        X = lambda v: ox + (v - xmin) / span * w
-        L.append(f"  \\node[anchor=west] at ({ox:.2f},{oy + h/2 + .45:.2f}) "
-                 f"{{\\textbf{{{LABEL[m]}}}}};")
-        z = X(0)
-        L.append(f"  \\draw[gray!55,dashed] ({z:.2f},{oy - h/2:.2f}) -- ({z:.2f},{oy + h/2:.2f});")
-        for i, a in enumerate(AXES):
-            y = oy + h/2 - (i + .5) * h / len(AXES)
-            L.append(f"  \\node[anchor=east] at ({ox - .12:.2f},{y:.2f}) {{${a}$}};")
-            L.append(f"  \\draw[thick] ({X(lo[i]):.2f},{y:.2f}) -- ({X(hi[i]):.2f},{y:.2f});")
-            sig = "" if pd.isna(sub.loc[f"X_{a}", "p_adj"]) or sub.loc[f"X_{a}", "p_adj"] >= .05 else ",fill=black"
-            L.append(f"  \\node[circle,draw,inner sep=1.3pt{sig}] at ({X(est[i]):.2f},{y:.2f}) {{}};")
-        L.append(f"  \\draw[->] ({ox:.2f},{oy - h/2 - .1:.2f}) -- ({ox + w:.2f},{oy - h/2 - .1:.2f});")
-        for v in (xmin + .12 * span, 0.0, xmax - .12 * span):
-            L.append(f"  \\node[anchor=north] at ({X(v):.2f},{oy - h/2 - .15:.2f}) "
-                     f"{{{v:+.3f}}};" if m != "cost_to_best" else
-                     f"  \\node[anchor=north] at ({X(v):.2f},{oy - h/2 - .15:.2f}) {{{v:+.2f}}};")
-    L.append(r"\end{tikzpicture}")
+        err = [ci * sub.loc[f"X_{a}", "std_err"] for a in AXES]
+        # bool(): pandas yields numpy.bool_, which fails an "is True" identity test
+        sig = [bool((not pd.isna(sub.loc[f"X_{a}", "p_adj"]))
+                    and sub.loc[f"X_{a}", "p_adj"] < .05) for a in AXES]
+        # Symmetric about zero with rounded ticks: the convention for a
+        # coefficient plot, and it keeps the zero line central so the sign of
+        # each effect reads off immediately.
+        ext = max(abs(e) + s_ for e, s_ in zip(est, err)) or .01
+        lo, hi = -1.12 * ext, 1.12 * ext
+        t = _nice(.75 * ext)
+        dp = 2 if m == "cost_to_best" else 3
+        ticks = ",".join(f"{v:.{dp}f}" for v in (-t, 0.0, t))
+
+        xlab = r", xlabel={$2\hat\beta$}" if metrics.index(m) >= len(metrics) - 2 else ""
+        L += [f"\\nextgroupplot[title={{{LABEL[m]}}}{xlab}, xmin={lo:.5f}, xmax={hi:.5f},",
+              f"  xtick={{{ticks}}}, xticklabel style={{/pgf/number format/fixed,",
+              f"    /pgf/number format/precision={dp}, /pgf/number format/fixed zerofill}},]",
+              r"\addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};"]
+        for want, mark in ((True, "*"), (False, "o")):
+            pts = [f"({est[i]:.6f},{i+1}) +- ({err[i]:.6f},0)"
+                   for i in range(len(AXES)) if sig[i] is want]
+            if pts:
+                L += [f"\\addplot[only marks, mark={mark}, mark size=1.6pt, black, thick,",
+                      r"  error bars/.cd, x dir=both, x explicit, error bar style={black}]",
+                      "  coordinates {" + " ".join(pts) + "};"]
+    L += [r"\end{groupplot}", r"\end{tikzpicture}"]
     return "\n".join(L)
 
 
