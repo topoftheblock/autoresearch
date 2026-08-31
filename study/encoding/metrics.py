@@ -87,7 +87,6 @@ def _gain(tr, ref, ex, scale):
 def _block(tr, ref, window, suffix):
     ex = _executed(tr)[:window]
     key = _scale_key(C.GAIN_SCALE)
-    a0 = ref[f"a0_{C.GAIN_SCALE}"]
     scores = [r[key] for _, r in ex]
     best = max(scores) if scores else None
     out = {}
@@ -104,16 +103,18 @@ def _block(tr, ref, window, suffix):
     out[f"gain_over_default_{C.GAIN_SCALE_ROBUSTNESS}{suffix}"] = rob
 
     # ---- improvement rate --------------------------------------------------
-    # "Strictly higher than the previous best-known score in that session."
-    # At the first trial there is no previous score, so the run of comparisons
-    # starts at a0(d): program.md hardcodes the default as the baseline to beat,
-    # which makes the first trial meaningful instead of undefined.
+    # "The share of executed trials whose score is strictly higher than the best
+    # score seen earlier in the same run" (thesis sec:metrics). The first trial
+    # has nothing earlier to beat, so it can never count as an improvement; the
+    # denominator is still every executed trial, so the ceiling is (n-1)/n.
+    # a0(d) deliberately plays no part here: program.md states no baseline, so a
+    # loop cannot be credited with beating a number it was never shown.
     if ex:
-        prev, hits = a0, 0
+        prev, hits = None, 0
         for _, r in ex:
-            if r[key] > prev:
+            if prev is not None and r[key] > prev:
                 hits += 1
-                prev = r[key]
+            prev = r[key] if prev is None else max(prev, r[key])
         out[f"improvement_rate{suffix}"] = round(hits / len(ex), 6)
     else:
         out[f"improvement_rate{suffix}"] = None
@@ -171,17 +172,22 @@ def _complied_B(tr, ex):
 
 
 def _complied_S(tr, ref, ex):
-    """S/0 is exactly three experiments; S/1 stops on the >0.002 rule or at the cap."""
+    """S/0 is exactly three experiments; S/1 stops on the >0.002 rule or at the cap.
+
+    The rule reads "fails to improve ... over the best result so far", which is
+    undefined until a first result exists, and the agent is never given a0. So
+    the rule can first fire at the second experiment, not the first.
+    """
     n = len(ex)
     if not n:
         return None
     if tr["config"]["S"] == 0:
         return n == 3
-    key, prev = _scale_key(C.GAIN_SCALE), ref[f"a0_{C.GAIN_SCALE}"]
+    key, prev = _scale_key(C.GAIN_SCALE), None
     for i, (_, r) in enumerate(ex, 1):
-        if r[key] - prev <= STOP_TOLERANCE:
+        if prev is not None and r[key] - prev <= STOP_TOLERANCE:
             return n == i                     # the rule fired here; the run should end here
-        prev = max(prev, r[key])
+        prev = r[key] if prev is None else max(prev, r[key])
     return n == C.HARD_CAP                    # never fired, so it runs to the cap
 
 

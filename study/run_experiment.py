@@ -16,6 +16,7 @@ Usage
     python3 run_experiment.py --dry-run        one cell, no API calls
     python3 run_experiment.py --reference      compute the baseline a0(d) only
     python3 run_experiment.py                  full study
+    python3 run_experiment.py --encode         rebuild the table from transcripts
     python3 run_experiment.py --analyze        fit eq. (2) and (3) on the table
 """
 import argparse
@@ -230,6 +231,26 @@ def _one_cell(cfg, ds, seed, results_dir):
         f"{C.CELL_RETRIES + 1} attempts; the cell cannot be filled")
 
 
+def cmd_encode():
+    """Rebuild the regression table from the transcripts already on disk.
+
+    Metrics come straight off the structured transcript (thesis sec:metrics), so
+    a change to a metric definition never requires re-running the loop or
+    touching the API: re-encode and refit instead.
+    """
+    C.validate(need_api=False)
+    results = STUDY / C.RESULTS_DIRNAME
+    trs = [json.loads(p.read_text()) for p in sorted(results.rglob("transcript.json"))]
+    if not trs:
+        raise SystemExit(f"no transcripts under {results}")
+    refs = reference.load_or_compute(sorted({t["dataset"] for t in trs}))
+    rows = [metrics.encode_run(t, refs[t["dataset"]]) for t in trs]
+    rows.sort(key=lambda r: (r["dataset_id"], r["config_id"], r["seed"]))
+    out = metrics.write_table(rows, results)
+    print(f"re-encoded {len(rows)} transcripts -> {out}")
+    return rows
+
+
 def cmd_run(workers=1):
     import threading
     from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -311,6 +332,8 @@ if __name__ == "__main__":
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--reference", action="store_true")
+    ap.add_argument("--encode", action="store_true",
+                    help="rebuild the table from transcripts on disk; no API calls")
     ap.add_argument("--analyze", action="store_true",
                     help="fit eq. (2) and (3) with the dataset fixed effect")
     ap.add_argument("--workers", type=int, default=1,
@@ -320,6 +343,9 @@ if __name__ == "__main__":
         sys.exit(cmd_check())
     if a.dry_run:
         sys.exit(cmd_dry_run())
+    if a.encode:
+        cmd_encode()
+        sys.exit(0)
     if a.analyze:
         import regression
         regression.run(results_dir=C.RESULTS_DIRNAME)
