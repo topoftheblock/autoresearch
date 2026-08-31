@@ -1,153 +1,245 @@
 """
-Dependent variables (thesis 5.5).
+Dependent variables (thesis sec:metrics).
 
-Computed mechanically from the structured transcript; no natural-language
-processing and no judge model is involved, because every step of the loop is
-emitted as JSON with a declared action type.
+Four metrics, computed mechanically from the structured transcript. No evaluation
+framework, scoring library or judge model is involved: each is a difference in
+accuracy, a share of the proposals, or a count of executor calls.
 
-Measurement window (thesis 5.5, "Measurement window"): the stopping-rule
-component sets how many experiments a run performs, and several metrics are
-aggregates over those experiments, so each metric is computed over the first
-WINDOW experiments -- the number the fixed-budget level performs and therefore
-the number available in every run. The complete-run value is computed alongside
-it and carries the suffix _full.
+  gain_over_default   score of the finally recommended configuration minus a0(d)
+  wasted_trial_ratio  (rejected or malformed + exact duplicates) / attempts
+  improvement_rate    share of executed trials beating the best score so far
+  cost_to_best        executor calls up to and including the run's best score
 
-Note on n_experiments: over a fixed prefix this is degenerate by construction
-(it equals WINDOW whenever the run got that far). Its informative form is the
-_full column, which is the budget the run actually spent and is the designated
-behavioural counterpart of the stopping-rule component.
+Measurement window (thesis sec:metrics): the stopping rule sets how many
+experiments a run performs and every metric aggregates over them, so each is
+computed over the first WINDOW experiments, the number the fixed-budget level
+performs and hence the number every run has. The complete-run value carries the
+suffix _full.
+
+Two further things this module writes into the row, both demanded by the thesis:
+
+  * dataset_id, the task the run was made on. It is the categorical control D_j
+    in eq. (2); without it on every single row the dataset fixed effect cannot be
+    fitted and the baseline difficulty of a task leaks into the beta_i.
+  * compliance, so that "this component had no effect" is distinguishable from
+    "the model ignored this component" (thesis sec:results). Only B, S and E
+    constrain an observable action; O constrains wording, so it gets the prose
+    length as a manipulation check; M leaves no behavioural trace, because the
+    executor computes the score whatever the instruction says.
 """
+import csv
+import json
 import sys
 from pathlib import Path
-from statistics import mean
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "config"))
 import study_config as C  # noqa: E402
 
 
-def _steps(tr, action):
-    return [s for s in tr["steps"] if s["action"] == action]
+# --------------------------------------------------------------- transcript --
+def _executed(tr):
+    """Executed experiments in order, each as (step, record)."""
+    return [(s["step"], s["content"]) for s in tr["steps"] if s["action"] == "execute"]
 
 
-def _same_value(a, b):
-    if isinstance(a, float) or isinstance(b, float):
-        try:
-            return abs(float(a) - float(b)) <= C.REFINEMENT_FLOAT_TOL
-        except (TypeError, ValueError):
-            return a == b
-    return a == b
+def _final_choice(tr):
+    """The structured configuration the run recommended, if it gave one."""
+    for s in reversed(tr["steps"]):
+        if s["action"] == "decide" and s.get("decision") == "stop":
+            if s.get("final_model") and s.get("final_params") is not None:
+                return s["final_model"], s["final_params"]
+            return None
+    return None
 
 
-def _is_refinement(cur, prev):
-    """Same model family and at most one hyperparameter moved (thesis 5.5)."""
-    if cur["model"] != prev["model"]:
-        return False
-    keys = set(cur["params"]) | set(prev["params"])
-    moved = 0
-    for k in keys:
-        if k not in cur["params"] or k not in prev["params"]:
-            moved += 1
-        elif not _same_value(cur["params"][k], prev["params"][k]):
-            moved += 1
-    return moved <= 1
+def _key(model, params):
+    return (model, tuple(sorted((str(k), str(v)) for k, v in params.items())))
 
 
-def _window(tr, w):
-    """The first w executed experiments and the proposals that produced them."""
-    execs, props, seen = [], [], 0
-    for s in tr["steps"]:
-        if s["action"] == "propose":
-            pending = s
-        elif s["action"] == "execute":
-            if seen >= w:
+def _scale_key(scale):
+    return "cv_accuracy_mean" if scale == "cv" else "val_accuracy"
+
+
+# ------------------------------------------------------------------ metrics --
+def _gain(tr, ref, ex, scale):
+    """Gain over default on one scale, or None where that scale is excluded."""
+    if scale in C.GAIN_SCALES_EXCLUDED.get(tr["dataset"], []):
+        return None, None
+    key, a0 = _scale_key(scale), ref[f"a0_{scale}"]
+    scores = [r[key] for _, r in ex]
+    if not scores:
+        return None, None
+    # The paper defines this on the configuration the run finally recommends.
+    # If the run named one and it was actually executed, that score is used.
+    # Otherwise the best executed score stands in, and the basis records which,
+    # so a run that recommended something it never ran is never silently scored.
+    chosen, basis = max(scores), "best_executed"
+    fc = _final_choice(tr)
+    if fc is not None:
+        want = _key(*fc)
+        for _, r in ex:
+            if _key(r["model"], r["params"]) == want:
+                chosen, basis = r[key], "final_config"
                 break
-            execs.append(s)
-            props.append(pending)
-            seen += 1
-    return props, execs
+    return round(chosen - a0, 6), basis
 
 
-def _block(tr, props, execs, ref, suffix):
-    n = len(execs)
+def _block(tr, ref, window, suffix):
+    ex = _executed(tr)[:window]
+    key = _scale_key(C.GAIN_SCALE)
+    a0 = ref[f"a0_{C.GAIN_SCALE}"]
+    scores = [r[key] for _, r in ex]
+    best = max(scores) if scores else None
     out = {}
-    out[f"n_experiments{suffix}"] = n
-    out[f"n_model_families{suffix}"] = len({p["model"] for p in props}) if props else 0
 
-    ne = [p["params"]["n_estimators"] for p in props if "n_estimators" in p["params"]]
-    lo, hi = C.N_ESTIMATORS_RANGE
-    out[f"search_width{suffix}"] = round((max(ne) - min(ne)) / (hi - lo), 6) if len(ne) >= 2 else 0.0
+    # ---- gain over default -------------------------------------------------
+    gain, basis = _gain(tr, ref, ex, C.GAIN_SCALE)
+    out[f"gain_over_default{suffix}"] = gain
+    out[f"gain_basis{suffix}"] = basis
+    out[f"best_score{suffix}"] = best
 
-    if len(props) >= 2:
-        hits = sum(_is_refinement(props[t], props[t - 1]) for t in range(1, len(props)))
-        out[f"refinement_rate{suffix}"] = round(hits / (len(props) - 1), 6)
+    # Robustness scale (thesis sec:metrics): the same quantity on the other
+    # accuracy scale, so an effect of M can be required to agree on both.
+    rob, _ = _gain(tr, ref, ex, C.GAIN_SCALE_ROBUSTNESS)
+    out[f"gain_over_default_{C.GAIN_SCALE_ROBUSTNESS}{suffix}"] = rob
+
+    # ---- improvement rate --------------------------------------------------
+    # "Strictly higher than the previous best-known score in that session."
+    # At the first trial there is no previous score, so the run of comparisons
+    # starts at a0(d): program.md hardcodes the default as the baseline to beat,
+    # which makes the first trial meaningful instead of undefined.
+    if ex:
+        prev, hits = a0, 0
+        for _, r in ex:
+            if r[key] > prev:
+                hits += 1
+                prev = r[key]
+        out[f"improvement_rate{suffix}"] = round(hits / len(ex), 6)
     else:
-        out[f"refinement_rate{suffix}"] = None      # undefined; excluded for this metric only
+        out[f"improvement_rate{suffix}"] = None
 
-    out[f"mean_hypothesis_chars{suffix}"] = round(
-        mean(len(p.get("content") or "") for p in props), 2) if props else None
+    # ---- cost to best ------------------------------------------------------
+    # 1-based index of the executor call that produced the run's highest score,
+    # earliest index on ties. Exploration after that point does not count.
+    out[f"cost_to_best{suffix}"] = (
+        min(i for i, (_, r) in enumerate(ex, 1) if r[key] == best) if ex else None)
 
-    excluded = C.REGRET_SCALES_EXCLUDED.get(ref["dataset"], [])
-    for scale, key in (("cv", "cv_accuracy_mean"), ("val", "val_accuracy")):
-        best = max((e["content"][key] for e in execs), default=None)
-        out[f"best_{scale}{suffix}"] = best
-        a_star, a0 = ref[f"a_star_{scale}"], ref[f"a0_{scale}"]
-        denom = a_star - a0
-        if scale in excluded or best is None or denom <= 0:
-            # thesis 5.5: a dataset with a*(d) == a0(d) offers no headroom, and
-            # is excluded rather than assigned an arbitrary value. The exclusion
-            # is declared per dataset and scale in study_config, so that a blank
-            # column is a recorded decision rather than a silent failure.
-            out[f"regret_{scale}{suffix}"] = None
-        else:
-            out[f"regret_{scale}{suffix}"] = round((a_star - best) / denom, 6)
-
-    reg = out[f"regret_cv{suffix}"]
-    out[f"regret_per_call{suffix}"] = round(reg / n, 6) if (reg is not None and n) else None
+    out[f"n_executed{suffix}"] = len(ex)
     return out
 
 
+def _wasted(tr, window):
+    """Wasted trial ratio over the attempts that fall inside the window.
+
+    An attempt is wasted when it never reached the executor (malformed reply or
+    a shape or whitelist rejection) or when it exactly duplicates an earlier
+    attempt in the same run. The denominator is every attempt made.
+    """
+    atts = tr.get("attempts")
+    if not atts:
+        return {"wasted_trial_ratio": None, "n_attempts": None,
+                "n_rejected": None, "n_duplicate": None}
+    # window: keep attempts up to and including the WINDOW-th executed one
+    seen_exec, cut = 0, len(atts)
+    for i, a in enumerate(atts):
+        if a["outcome"] == "executed":
+            seen_exec += 1
+            if seen_exec == window:
+                cut = i + 1
+                break
+    sel = atts[:cut] if window < 10 ** 9 else atts
+    rejected = sum(1 for a in sel if a["outcome"] != "executed")
+    dup = sum(1 for a in sel if a["outcome"] == "executed" and a.get("duplicate"))
+    return {"wasted_trial_ratio": round((rejected + dup) / len(sel), 6) if sel else None,
+            "n_attempts": len(sel), "n_rejected": rejected, "n_duplicate": dup}
+
+
+# --------------------------------------------------------------- compliance --
+# thesis sec:results. One mechanical check per component whose instruction
+# constrains an action; the other two are handled as documented in the module
+# docstring. Every check reads the complete run, not the measurement window,
+# because the instruction governs the whole session.
+STOP_TOLERANCE = 0.002          # the adaptive level's threshold, from axes.py S/1
+
+
+def _complied_B(tr, ex):
+    """B/0 says stay in one family for the session; B/1 says compare both."""
+    fams = {r["model"] for _, r in ex}
+    if not fams:
+        return None
+    return len(fams) == (2 if tr["config"]["B"] == 1 else 1)
+
+
+def _complied_S(tr, ref, ex):
+    """S/0 is exactly three experiments; S/1 stops on the >0.002 rule or at the cap."""
+    n = len(ex)
+    if not n:
+        return None
+    if tr["config"]["S"] == 0:
+        return n == 3
+    key, prev = _scale_key(C.GAIN_SCALE), ref[f"a0_{C.GAIN_SCALE}"]
+    for i, (_, r) in enumerate(ex, 1):
+        if r[key] - prev <= STOP_TOLERANCE:
+            return n == i                     # the rule fired here; the run should end here
+        prev = max(prev, r[key])
+    return n == C.HARD_CAP                    # never fired, so it runs to the cap
+
+
+def _refines(a, b):
+    """b is a nearby variation of a: same family, at least one value carried over."""
+    if a["model"] != b["model"]:
+        return False
+    return bool(set(a["params"].items()) & set(b["params"].items()))
+
+
+def _complied_E(tr, ex):
+    """E/1 refines the first promising configuration at once; E/0 does not."""
+    if len(ex) < 2:
+        return None
+    refined = _refines(ex[0][1], ex[1][1])
+    return refined if tr["config"]["E"] == 1 else not refined
+
+
+def _prose_chars(tr):
+    """Manipulation check for O: mean characters of model-written text per step."""
+    txt = [len(s.get("content", "") or "") for s in tr["steps"]
+           if s["action"] in ("propose", "interpret")]
+    return round(sum(txt) / len(txt), 1) if txt else None
+
+
+# ---------------------------------------------------------------- encoding ---
 def encode_run(tr, ref):
-    """One transcript + that dataset's reference constants -> one regression row."""
-    row = {
-        "run_id": tr["run_id"],
-        "config_id": tr["config_id"],
-        "dataset": tr["dataset"],
-        "seed": tr["seed"],
-    }
+    """One transcript plus that dataset's baseline -> one regression row."""
+    row = {"run_id": tr["run_id"], "config_id": tr["config_id"],
+           "dataset_id": tr["dataset"], "seed": tr["seed"]}
     row.update({a: tr["config"][a] for a in C.AXIS_ORDER})
     row.update({f"X_{a}": (1 if tr["config"][a] == 1 else -1) for a in C.AXIS_ORDER})
 
-    props_w, execs_w = _window(tr, C.WINDOW)
-    row.update(_block(tr, props_w, execs_w, ref, ""))
+    row.update(_block(tr, ref, C.WINDOW, ""))
+    row.update(_wasted(tr, C.WINDOW))
+    row.update(_block(tr, ref, 10 ** 9, "_full"))
+    full = _wasted(tr, 10 ** 9)
+    row.update({f"{k}_full": v for k, v in full.items()})
 
-    props_f, execs_f = _window(tr, 10 ** 9)
-    row.update(_block(tr, props_f, execs_f, ref, "_full"))
+    ex_full = _executed(tr)
+    row["complied_B"] = _complied_B(tr, ex_full)
+    row["complied_S"] = _complied_S(tr, ref, ex_full)
+    row["complied_E"] = _complied_E(tr, ex_full)
+    row["prose_chars"] = _prose_chars(tr)
 
-    # thesis 5.11: compliance, so that "no effect" is distinguishable from
-    # "not followed"; and how the run ended, since the cap is a property of the
-    # harness and not of the treatment.
-    n_full = row["n_experiments_full"]
-    row["complied_S"] = bool(n_full == 3) if tr["config"]["S"] == 0 else bool(n_full <= C.HARD_CAP)
-    row["complied_B"] = bool(row["n_model_families_full"] == 1) if tr["config"]["B"] == 0 else True
+    # how the run ended, since the cap belongs to the harness, not the treatment
     row["terminated_by"] = tr.get("terminated_by")
     row["n_bad_replies"] = tr.get("n_bad", 0)
     return row
 
 
-FIELDS_ORDER = None  # set by the writer from the first row
-
-
 def write_table(rows, out_dir):
-    """Write the regression table as CSV and JSON (thesis 4.3 / 5.8)."""
-    import csv
-    import json
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / f"{C.TABLE_BASENAME}.json").write_text(json.dumps(rows, indent=2))
     if rows:
-        cols = list(rows[0].keys())
         with (out_dir / f"{C.TABLE_BASENAME}.csv").open("w", newline="") as fh:
-            w = csv.DictWriter(fh, fieldnames=cols)
+            w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
             w.writeheader()
             w.writerows(rows)
     return out_dir / f"{C.TABLE_BASENAME}.csv"

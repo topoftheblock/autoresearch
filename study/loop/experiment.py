@@ -1,14 +1,11 @@
 """
-Experiment executor, dataset-parameterised (thesis 5.4).
+Experiment executor, dataset-parameterised (thesis sec:setup).
 
 This is the one part of the loop that is NOT a language-model call. The model
 chooses what to run; this module runs it and returns real measurements. The same
 record is returned regardless of what a configuration's evaluation paragraph
 emphasises: cross-validated accuracy on the training split, its across-fold
 standard deviation, and accuracy on the held-out validation split.
-
-loop/executor.py is the single-dataset version used by the earlier pilot and is
-left untouched so that the pilot remains reproducible.
 """
 import sys
 import time

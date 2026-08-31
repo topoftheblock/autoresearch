@@ -1,0 +1,10 @@
+# Smoke-test output: regenerated on every `python3 run_experiment.py --dry-run`.
+study/dry_run_out/
+
+# Full-study output: real transcripts and the fitted tables. Kept out of git
+# because a run writes 1280 transcripts; back it up separately.
+study/results_full/
+
+__pycache__/
+*.pyc
+.DS_Store

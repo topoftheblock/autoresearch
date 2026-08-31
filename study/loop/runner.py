@@ -1,18 +1,22 @@
 """
-One run of the autoresearch loop (thesis 2.2, 5.11).
+One run of the autoresearch loop (thesis sec:loop, sec:setup).
 
 A run is one execution under one configuration, on one dataset, with one seed.
 The instruction file is supplied once as the system message and is not modified
 thereafter; the model alternates propose / interpret, and the harness performs
 the execution step itself.
 
-Controls enforced here, all from thesis 5.11:
+Controls enforced here, all from thesis sec:setup:
   * the agent model is a pinned dated snapshot, never a moving alias;
   * the decoding temperature is one fixed value for every run, and is strictly
     above zero, because the run-to-run variance is the error term against which
     every coefficient of eq. (2) is tested;
   * an explicit sampling seed is passed to the model interface, so any single
     run can be regenerated exactly while replicates still differ from one another.
+
+Every proposal the model attempts is logged in transcript["attempts"], including
+the ones that never reach the executor. The wasted trial ratio needs the failures
+as well as the successes, and a counter of bad replies cannot supply them.
 """
 import json
 import os
@@ -85,11 +89,25 @@ def run_one(config, dataset, seed, program_dir):
     cid = config_id(config)
     program_dir = Path(program_dir)
     program_dir.mkdir(parents=True, exist_ok=True)
-    program = render_program(config, program_dir / "program.md")
+    program = render_program(config, program_dir / "program.md", dataset)
 
     messages = [{"role": "system", "content": program + PROTOCOL}]
     steps, executed, bad, step = [], [], 0, 0
+    attempts = []                     # every proposal the model made, failures included
+    seen = set()                      # (family, params) already attempted in this run
     terminated_by = "hard_cap"
+
+    def log_attempt(model, params, outcome, error=None):
+        key = None
+        if model is not None and params is not None:
+            key = (model, tuple(sorted((str(k), str(v)) for k, v in params.items())))
+        rec = {"attempt": len(attempts) + 1, "model": model, "params": params,
+               "outcome": outcome, "duplicate": bool(key is not None and key in seen),
+               "error": error}
+        if key is not None:
+            seen.add(key)
+        attempts.append(rec)
+        return rec
 
     while len(executed) < C.HARD_CAP and bad < C.MAX_BAD:
         messages.append({"role": "user", "content":
@@ -102,11 +120,13 @@ def run_one(config, dataset, seed, program_dir):
             action = parse_json(reply)
         except ValueError:
             bad += 1
+            log_attempt(None, None, "malformed_json")
             messages.append({"role": "user", "content":
                              "That was not valid JSON. Reply with one JSON object only."})
             continue
         if action.get("action") != "propose" or "model" not in action or "params" not in action:
             bad += 1
+            log_attempt(action.get("model"), action.get("params"), "bad_shape")
             messages.append({"role": "user", "content":
                              "Expected a 'propose' object with 'model' and 'params'. Try again."})
             continue
@@ -120,18 +140,22 @@ def run_one(config, dataset, seed, program_dir):
             steps.pop()
             step -= 1
             bad += 1
+            log_attempt(action["model"], action["params"], "executor_rejected", result["error"])
             messages.append({"role": "user", "content":
                              f"The executor rejected that: {result['error']}. "
                              f"Propose a valid experiment instead."})
             continue
+        att = log_attempt(action["model"], action["params"], "executed")
+        att["step"] = step
         steps.append({"step": step, "action": "execute", "content": result})
         executed.append(result)
 
         messages.append({"role": "user", "content":
                          "Executor result: " + json.dumps(result) +
                          "\nReply with a JSON 'interpret' object including a 'decision' "
-                         "field ('continue' or 'stop'; include 'final_recommendation' "
-                         "if you stop)."})
+                         "field ('continue' or 'stop'). If you stop, also include "
+                         "'final_recommendation', plus 'final_model' and "
+                         "'final_params' naming the configuration you recommend."})
         reply = call_model(messages, seed)
         messages.append({"role": "assistant", "content": reply})
         try:
@@ -146,6 +170,8 @@ def run_one(config, dataset, seed, program_dir):
                "decision": "stop" if decision == "stop" else "continue"}
         if decision == "stop":
             rec["final_recommendation"] = action.get("final_recommendation", "")
+            rec["final_model"] = action.get("final_model")
+            rec["final_params"] = action.get("final_params")
             steps.append(rec)
             terminated_by = "model_stop"
             break
@@ -161,5 +187,6 @@ def run_one(config, dataset, seed, program_dir):
         "config_id": cid, "config": config, "dataset": dataset, "seed": seed,
         "agent_model": C.AGENT_MODEL, "temperature": C.TEMPERATURE,
         "api_seed": seed if C.SEND_API_SEED else None,
-        "terminated_by": terminated_by, "n_bad": bad, "steps": steps,
+        "terminated_by": terminated_by, "n_bad": bad,
+        "n_attempts": len(attempts), "attempts": attempts, "steps": steps,
     }

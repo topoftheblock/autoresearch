@@ -7,8 +7,10 @@ question through real, executed experiments (not simulated ones):
 
 You have access to a fixed dataset ({{ dataset_name }}, already loaded and split
 into train/validation) and to a tool that fits either a RandomForestClassifier or
-a GradientBoostingClassifier with hyperparameters you choose, and returns the
-requested metric(s) computed on the validation split.
+a GradientBoostingClassifier with hyperparameters you choose. The tool always
+returns the same record: 5-fold cross-validated accuracy on the training split,
+its standard deviation across folds, and accuracy on the held-out validation
+split.
 
 ## Evaluation
 
