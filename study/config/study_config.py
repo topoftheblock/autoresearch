@@ -47,7 +47,14 @@ SEED_LIST = None                # derived from REPLICATES_R by seeds(); same lis
 # thesis sec:setup / harness: safety bounds, properties of the harness not the treatment.
 HARD_CAP = 8                    # max executor calls per run
 MAX_BAD = 4                     # max malformed/rejected replies per run
-API_RETRIES = 4
+API_RETRIES = 4                 # transient server faults (500/502/503, timeouts)
+
+# A 429 under a tokens-per-minute cap is self-clearing: the bucket refills on a
+# fixed window. Blind exponential backoff (1+2+4+8 = 15s) gives up before a 60s
+# window resets, so rate limits get a separate, patient budget and the retry
+# delay is taken from the server's own Retry-After / x-ratelimit-reset headers.
+RATE_LIMIT_RETRIES = 12
+MAX_BACKOFF_S = 90
 
 # thesis sec:setup: a run that fails to produce a valid experiment is repeated
 # with a fresh seed until the cell holds exactly R completed runs. This bounds

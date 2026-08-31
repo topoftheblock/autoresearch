@@ -204,7 +204,7 @@ def _one_cell(cfg, ds, seed, results_dir):
     it can never collide with another cell's replicate, and the transcript
     records which seed actually produced it.
     """
-    from runner import run_one
+    from runner import run_one, EmptyRun
     cell = Path(results_dir) / config_id(cfg) / ds / f"seed{seed}"
     tpath = cell / "transcript.json"
     if tpath.exists():
@@ -215,7 +215,10 @@ def _one_cell(cfg, ds, seed, results_dir):
         use = seed + k * stride
         try:
             tr = run_one(cfg, ds, use, cell)
-        except RuntimeError as exc:
+        except EmptyRun as exc:
+            # Only this case earns a replacement seed. ModelUnavailable is an API
+            # fault and propagates: substituting a seed because the endpoint was
+            # briefly unreachable would silently corrupt the seed list.
             print(f"    {config_id(cfg)}/{ds}/seed{use}: {exc}; retrying with a fresh seed")
             continue
         tr["planned_seed"] = seed
@@ -263,23 +266,36 @@ def cmd_run(workers=1):
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(task, w): w for w in work}
+        failed = []
         try:
             for fut in as_completed(futures):
                 cfg, ds, seed = futures[fut]
-                row, cached = fut.result()
+                try:
+                    row, cached = fut.result()
+                except Exception as exc:                  # noqa: BLE001
+                    failed.append((config_id(cfg), ds, seed, repr(exc)))
+                    continue
                 with lock:
                     rows.append(row)
                     done += 1
                     el = (time.time() - t0) / 60
                     eta = el / done * (total - done)
                     print(f"[{done}/{total}] {ds} {config_id(cfg)} seed{seed} "
-                          f"n={row['n_experiments_full']} term={row['terminated_by']}"
+                          f"n={row['n_executed_full']} term={row['terminated_by']}"
                           f"{' (cached)' if cached else ''} "
                           f"| {el:.1f} min elapsed, ~{eta:.0f} min left")
         except KeyboardInterrupt:
             print("\ninterrupted; completed transcripts are on disk, rerun to resume")
             pool.shutdown(wait=False, cancel_futures=True)
             raise
+
+    if failed:
+        print(f"\n{len(failed)} run(s) did not produce a row:")
+        for cid, ds, seed, exc in failed[:20]:
+            print(f"  {cid}/{ds}/seed{seed}: {exc}")
+        raise RuntimeError(
+            f"{len(failed)} of {total} runs failed; the design is incomplete, so no "
+            f"table is written. Completed transcripts are on disk; rerun to resume.")
 
     rows.sort(key=lambda r: (r["dataset_id"], r["config_id"], r["seed"]))
     out = metrics.write_table(rows, results)

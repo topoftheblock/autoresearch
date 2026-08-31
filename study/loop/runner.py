@@ -34,6 +34,58 @@ from experiment import run_experiment  # noqa: E402
 from render_program import render_program  # noqa: E402
 import study_config as C  # noqa: E402
 
+class ModelUnavailable(RuntimeError):
+    """The model interface could not be reached. A property of the API, not the run.
+
+    Kept distinct from EmptyRun because the two demand opposite responses: a run
+    that produced nothing is replaced with a fresh seed (thesis sec:setup), while
+    an unreachable API must never consume a replacement seed -- doing so silently
+    substitutes seeds for reasons that have nothing to do with the experiment and
+    breaks the guarantee that every cell draws from the same seed list.
+    """
+
+
+class EmptyRun(RuntimeError):
+    """The run completed no valid experiment. Replace it with a fresh seed."""
+
+
+def _parse_duration(text):
+    """OpenAI reset headers look like '59.944s', '1m30s', '2h27m18.516s'."""
+    import re as _re
+    text = text.strip()
+    ms = _re.fullmatch(r"(\d+(?:\.\d+)?)ms", text)
+    if ms:
+        return float(ms.group(1)) / 1000.0
+    m = _re.fullmatch(r"(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?"
+                      r"(?:(\d+(?:\.\d+)?)s)?", text)
+    if not m or not any(m.groups()):
+        return None
+    h, mi, sec = (float(g) if g else 0.0 for g in m.groups())
+    return h * 3600 + mi * 60 + sec
+
+
+def _retry_after(err, attempt):
+    """How long to wait, preferring the server's own guidance over guesswork.
+
+    The token bucket refills on a fixed window, so blind exponential backoff
+    (1+2+4+8 = 15s) gives up long before a 60s window resets. Honour Retry-After
+    and the x-ratelimit-reset-* headers instead.
+    """
+    hdrs = getattr(err, "headers", None) or {}
+    for key in ("retry-after", "x-ratelimit-reset-tokens", "x-ratelimit-reset-requests"):
+        raw = hdrs.get(key)
+        if not raw:
+            continue
+        secs = _parse_duration(str(raw))
+        if secs is None:
+            try:
+                secs = float(raw)
+            except (TypeError, ValueError):
+                continue
+        return min(secs + 1.0, C.MAX_BACKOFF_S)
+    return min(2 ** attempt, C.MAX_BACKOFF_S)
+
+
 PROTOCOL = (
     "\n\nYou are the research agent. Reply with EXACTLY ONE JSON object per turn "
     "and nothing else, following the two shapes specified above. Propose one "
@@ -58,18 +110,31 @@ def call_model(messages, seed):
         C.API_ENDPOINT, data=json.dumps(payload).encode(),
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
-    for attempt in range(C.API_RETRIES):
+    # A 429 under a tokens-per-minute cap is an expected, self-clearing condition,
+    # not an error: it means the bucket is empty and will refill. It therefore
+    # gets its own, far more patient budget than a genuine server fault.
+    last = None
+    for attempt in range(C.API_RETRIES + C.RATE_LIMIT_RETRIES):
         try:
             with urllib.request.urlopen(req, timeout=120) as r:
                 return json.load(r)["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503):
-                time.sleep(2 ** attempt)
+            last = f"HTTP {e.code}"
+            if e.code == 429:
+                time.sleep(_retry_after(e, attempt))
+                continue
+            if e.code in (500, 502, 503):
+                if attempt >= C.API_RETRIES:
+                    break
+                time.sleep(min(2 ** attempt, C.MAX_BACKOFF_S))
                 continue
             raise
-        except (urllib.error.URLError, TimeoutError):
-            time.sleep(2 ** attempt)
-    raise RuntimeError("model call failed after retries")
+        except (urllib.error.URLError, TimeoutError) as e:
+            last = type(e).__name__
+            if attempt >= C.API_RETRIES:
+                break
+            time.sleep(min(2 ** attempt, C.MAX_BACKOFF_S))
+    raise ModelUnavailable(f"model call failed after retries ({last})")
 
 
 def parse_json(text):
@@ -180,7 +245,7 @@ def run_one(config, dataset, seed, program_dir):
         terminated_by = "max_bad" if bad >= C.MAX_BAD else "hard_cap"
 
     if not executed:
-        raise RuntimeError(f"run {cid}/{dataset}/seed{seed} produced no valid experiment")
+        raise EmptyRun(f"run {cid}/{dataset}/seed{seed} produced no valid experiment")
 
     return {
         "run_id": f"{cid}__{dataset}__seed{seed}",
