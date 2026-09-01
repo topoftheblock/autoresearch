@@ -191,15 +191,6 @@ I fit by ordinary least squares on the individual runs, not the cell means. Bala
 \subsection{Results}
 \label{sec:results}
 
-% PROVISIONAL -- delete this paragraph once the five outstanding cells are run.
-\emph{Provisional note.} The estimates below are computed on $1185$ of the $1280$ runs.
-Five of the sixty-four cells are incomplete, all of them on Wine and all at $M{=}1$,
-$B{=}1$: four contain no runs and one contains five of twenty replicates, an API request
-quota having been reached before they executed. The design is therefore not exactly
-balanced in the sense described in Section~\ref{sec:setup}. Because the missing cells are
-systematic rather than randomly distributed, the estimates for $M$ and $B$ are the least
-reliable. All remaining cells contain the full twenty replicates.
-
 \begin{table}[t]
 \centering
 \small
@@ -210,10 +201,10 @@ Stars mark adjusted $p<0.05$ ($^{*}$), $<0.01$ ($^{**}$) and $<0.001$ ($^{***}$)
 \toprule
 Metric & $M$ & $B$ & $S$ & $O$ & $E$ & $\hat\gamma$ & $R^2$ \\
 \midrule
-Gain over default   & +0.001 & -0.001 & +0.001$^{**}$ & -0.000 & +0.000 & -0.001$^{***}$ & 0.034 \\
-Wasted trial ratio  & -0.023$^{***}$ & -0.034$^{***}$ & +0.046$^{***}$ & -0.075$^{***}$ & +0.005 & -0.003 & 0.158 \\
-Improvement rate    & +0.006 & -0.028$^{*}$ & +0.032$^{*}$ & +0.005 & +0.018 & -0.066$^{***}$ & 0.046 \\
-Cost to best        & +0.05 & -0.03 & +0.04 & -0.01 & -0.10 & -0.21$^{***}$ & 0.025 \\
+Gain over default   & +0.001 & -0.001 & +0.001$^{**}$ & +0.000 & +0.000 & -0.001$^{***}$ & 0.029 \\
+Wasted trial ratio  & -0.023$^{***}$ & -0.034$^{***}$ & +0.044$^{***}$ & -0.075$^{***}$ & +0.005 & -0.003 & 0.159 \\
+Improvement rate    & +0.008 & -0.026$^{*}$ & +0.034$^{**}$ & +0.006 & +0.018 & -0.064$^{***}$ & 0.044 \\
+Cost to best        & +0.06 & -0.02 & +0.05 & -0.01 & -0.11 & -0.20$^{***}$ & 0.025 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -233,43 +224,43 @@ Cost to best        & +0.05 & -0.03 & +0.04 & -0.01 & -0.10 & -0.21$^{***}$ & 0.
   title style={font=\scriptsize\bfseries, yshift=-1pt},
   scaled x ticks=false,
 ]
-\nextgroupplot[title={Gain over default}, xmin=-0.00187, xmax=0.00187,
+\nextgroupplot[title={Gain over default}, xmin=-0.00183, xmax=0.00183,
   xtick={-0.001,0.000,0.001}, xticklabel style={/pgf/number format/fixed,
     /pgf/number format/precision=3, /pgf/number format/fixed zerofill},]
 \addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
 \addplot[only marks, mark=*, mark size=1.6pt, black, thick,
   error bars/.cd, x dir=both, x explicit, error bar style={black}]
-  coordinates {(0.001046,3) +- (0.000623,0)};
+  coordinates {(0.001028,3) +- (0.000609,0)};
 \addplot[only marks, mark=o, mark size=1.6pt, black, thick,
   error bars/.cd, x dir=both, x explicit, error bar style={black}]
-  coordinates {(0.000562,1) +- (0.000631,0) (-0.000682,2) +- (0.000622,0) (-0.000031,4) +- (0.000622,0) (0.000077,5) +- (0.000622,0)};
-\nextgroupplot[title={Wasted trial ratio}, xmin=-0.09869, xmax=0.09869,
+  coordinates {(0.000627,1) +- (0.000609,0) (-0.000617,2) +- (0.000609,0) (0.000050,4) +- (0.000609,0) (0.000151,5) +- (0.000609,0)};
+\nextgroupplot[title={Wasted trial ratio}, xmin=-0.09746, xmax=0.09746,
   xtick={-0.050,0.000,0.050}, xticklabel style={/pgf/number format/fixed,
     /pgf/number format/precision=3, /pgf/number format/fixed zerofill},]
 \addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
 \addplot[only marks, mark=*, mark size=1.6pt, black, thick,
   error bars/.cd, x dir=both, x explicit, error bar style={black}]
-  coordinates {(-0.023000,1) +- (0.012707,0) (-0.033521,2) +- (0.012810,0) (0.045844,3) +- (0.013120,0) (-0.075328,4) +- (0.012785,0)};
+  coordinates {(-0.023177,1) +- (0.012178,0) (-0.033698,2) +- (0.012178,0) (0.043958,3) +- (0.012178,0) (-0.074844,4) +- (0.012178,0)};
 \addplot[only marks, mark=o, mark size=1.6pt, black, thick,
   error bars/.cd, x dir=both, x explicit, error bar style={black}]
-  coordinates {(0.004728,5) +- (0.012829,0)};
-\nextgroupplot[title={Improvement rate}, xlabel={$2\hat\beta$}, xmin=-0.05933, xmax=0.05933,
+  coordinates {(0.004896,5) +- (0.012178,0)};
+\nextgroupplot[title={Improvement rate}, xlabel={$2\hat\beta$}, xmin=-0.06099, xmax=0.06099,
   xtick={-0.025,0.000,0.025}, xticklabel style={/pgf/number format/fixed,
     /pgf/number format/precision=3, /pgf/number format/fixed zerofill},]
 \addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
 \addplot[only marks, mark=*, mark size=1.6pt, black, thick,
   error bars/.cd, x dir=both, x explicit, error bar style={black}]
-  coordinates {(-0.027694,2) +- (0.021429,0) (0.031525,3) +- (0.021445,0)};
+  coordinates {(-0.025781,2) +- (0.020340,0) (0.034115,3) +- (0.020340,0)};
 \addplot[only marks, mark=o, mark size=1.6pt, black, thick,
   error bars/.cd, x dir=both, x explicit, error bar style={black}]
-  coordinates {(0.006160,1) +- (0.021524,0) (0.004528,4) +- (0.021270,0) (0.017861,5) +- (0.021266,0)};
-\nextgroupplot[title={Cost to best}, xlabel={$2\hat\beta$}, xmin=-0.21114, xmax=0.21114,
+  coordinates {(0.008073,1) +- (0.020340,0) (0.005990,4) +- (0.020340,0) (0.018490,5) +- (0.020340,0)};
+\nextgroupplot[title={Cost to best}, xlabel={$2\hat\beta$}, xmin=-0.21731, xmax=0.21731,
   xtick={-0.10,0.00,0.10}, xticklabel style={/pgf/number format/fixed,
     /pgf/number format/precision=2, /pgf/number format/fixed zerofill},]
 \addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
 \addplot[only marks, mark=o, mark size=1.6pt, black, thick,
   error bars/.cd, x dir=both, x explicit, error bar style={black}]
-  coordinates {(0.048821,1) +- (0.089583,0) (-0.026179,2) +- (0.089277,0) (0.038174,3) +- (0.088037,0) (-0.014321,4) +- (0.088193,0) (-0.100988,5) +- (0.087531,0)};
+  coordinates {(0.056250,1) +- (0.084652,0) (-0.018750,2) +- (0.084652,0) (0.053125,3) +- (0.084652,0) (-0.009375,4) +- (0.084652,0) (-0.109375,5) +- (0.084652,0)};
 \end{groupplot}
 \end{tikzpicture}
 \caption{Estimated component effects on every metric. Points are $2\hat\beta_i$ from
@@ -283,11 +274,11 @@ scales, the metrics being in different units.}
 
 Table~\ref{tab:main} gives the main-effect estimates and Figure~\ref{fig:coefficients} plots them with their intervals. The components affect the four metrics unequally.
 
-The wasted trial ratio is the most responsive metric. Four of the five components produce effects that survive adjustment, and the model accounts for $R^2=0.16$ of its variance. The reporting style produces the largest effect measured anywhere in the design, $2\hat\beta_O=-0.075$, corresponding to a reduction in the mean ratio from $0.106$ at level $0$ to $0.032$ at level $1$. Search breadth and the evaluation criterion act in the same direction, with effects of $-0.034$ and $-0.023$. The adaptive stopping rule acts in the opposite direction, $+0.046$, raising the mean ratio from $0.047$ to $0.096$. This is consistent with its mechanism: the adaptive level raises the mean number of executed experiments from $2.88$ to $4.55$, and a proportion of the additional proposals duplicate configurations already attempted.
+The wasted trial ratio is the most responsive metric. Four of the five components produce effects that survive adjustment, and the model accounts for $R^2=0.16$ of its variance. The reporting style produces the largest effect measured anywhere in the design, $2\hat\beta_O=-0.075$, corresponding to a reduction in the mean ratio from $0.106$ at level $0$ to $0.031$ at level $1$. Search breadth and the evaluation criterion act in the same direction, with effects of $-0.034$ and $-0.023$. The adaptive stopping rule acts in the opposite direction, $+0.044$, raising the mean ratio from $0.046$ to $0.090$. This is consistent with its mechanism: the adaptive level raises the mean number of executed experiments from $2.88$ to $4.57$, and a proportion of the additional proposals duplicate configurations already attempted.
 
-The two outcome metrics respond to the stopping rule alone. It is the only component whose effect on the gain over default survives adjustment ($+0.001$, adj.\ $p=0.005$), and it raises the improvement rate from $0.137$ to $0.174$. Search breadth is the only other component affecting the improvement rate, at $-0.028$. No component affects the cost to best at the adjusted $0.05$ level; the largest estimate is exploit-first at $-0.10$, with adj.\ $p=0.12$. The components that determine efficiency are therefore not the components that determine outcome.
+The two outcome metrics respond to the stopping rule alone. It is the only component whose effect on the gain over default survives adjustment ($+0.001$, adj.\ $p=0.005$), and it raises the improvement rate from $0.135$ to $0.170$. Search breadth is the only other component affecting the improvement rate, at $-0.026$. No component affects the cost to best at the adjusted $0.05$ level; the largest estimate is exploit-first at $-0.11$, with adj.\ $p=0.057$. The components that determine efficiency are therefore not the components that determine outcome.
 
-On two of the four metrics the dataset fixed effect exceeds every component effect. Wine reduces the improvement rate by $0.066$ and the cost to best by $0.21$ relative to Breast Cancer, both at $p<10^{-5}$, against largest component effects of $0.032$ and $0.10$ on the same metrics. This is the variation that equation~\eqref{eq:regression} removes from the residual.
+On two of the four metrics the dataset fixed effect exceeds every component effect. Wine reduces the improvement rate by $0.064$ and the cost to best by $0.20$ relative to Breast Cancer, both at $p<10^{-5}$, against largest component effects of $0.034$ and $0.11$ on the same metrics. This is the variation that equation~\eqref{eq:regression} removes from the residual.
 
 Table~\ref{tab:interactions} gives the two-way interactions. Three of the forty estimated across the four metrics survive adjustment. All three occur on the wasted trial ratio and all three involve the reporting style: $S\times O$ at $-0.031$, $B\times O$ at $+0.018$, and $O\times E$ at $-0.016$. Only $S\times O$ is comparable in magnitude to a main effect. Its sign indicates that the verbose reporting style and the adaptive budget are partial substitutes: the reduction in wasted trials attributable to either component is smaller when the other is already at level $1$. For the remaining pairs the data provide no evidence of interaction, so the components may be treated as additive. This is the answer to RQ2, and the complete factorial is what permits the question to be tested rather than assumed.
 
@@ -301,23 +292,23 @@ shown, with adjusted $p$ given directly; compliance is reported as level $0$ / l
 \toprule
 Interaction & Estimate & adj.\ $p$ & Component & Compliance \\
 \midrule
-$S \times O$ (wasted trial ratio) & -0.031 & 0.000 & $B$ & 0.66 / 0.83 \\
-$B \times O$ (wasted trial ratio) & +0.018 & 0.016 & $S$ & 0.89 / 0.20 \\
-$O \times E$ (wasted trial ratio) & -0.016 & 0.024 & $E$ & 0.88 / 0.70 \\
-$M \times B$ (wasted trial ratio) & -0.012 & 0.122 & $O$ & 204 / 385 chars \\
+$S \times O$ (wasted trial ratio) & -0.031 & 0.000 & $B$ & 0.66 / 0.82 \\
+$B \times O$ (wasted trial ratio) & +0.018 & 0.009 & $S$ & 0.89 / 0.20 \\
+$O \times E$ (wasted trial ratio) & -0.016 & 0.019 & $E$ & 0.88 / 0.69 \\
+$M \times B$ (wasted trial ratio) & -0.010 & 0.171 & $O$ & 205 / 386 chars \\
  &  &  & $M$ & not observable \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-An instruction is not always obeyed. Table~\ref{tab:interactions} therefore also reports the share of runs whose behaviour actually matched the instruction given, so I can tell a component that had no effect from one the model ignored. Three components constrain an observable action and admit a mechanical check: $B$ by the number of model families the run proposes, $S$ by the number of experiments it performs, $E$ by whether its second proposal refines the first. $O$ constrains wording rather than action, so it gets a manipulation check instead, the mean characters of hypothesis and interpretation text per run at each level. $M$ leaves no behavioural trace at all, because the executor computes the score whatever the instruction says. The manipulation check separates the two levels of the reporting style clearly: the mean quantity of model-written text per run is $204$ characters at level $0$ and $385$ at level $1$. Compliance with the remaining instructions is partial. The fixed budget is followed in $89\%$ of runs, the adaptive rule in only $20\%$. The stopping-rule effects reported above are therefore the effect of offering an adaptive budget, not the effect of a loop that terminates on diminishing returns. Search breadth is followed in $66\%$ of narrow runs and $83\%$ of broad runs, and exploit-first in $70\%$ of runs. All estimates in Table~\ref{tab:main} are consequently intention-to-treat estimates, attenuated towards zero in proportion to the non-compliance rate of the component concerned.
+An instruction is not always obeyed. Table~\ref{tab:interactions} therefore also reports the share of runs whose behaviour actually matched the instruction given, so I can tell a component that had no effect from one the model ignored. Three components constrain an observable action and admit a mechanical check: $B$ by the number of model families the run proposes, $S$ by the number of experiments it performs, $E$ by whether its second proposal refines the first. $O$ constrains wording rather than action, so it gets a manipulation check instead, the mean characters of hypothesis and interpretation text per run at each level. $M$ leaves no behavioural trace at all, because the executor computes the score whatever the instruction says. The manipulation check separates the two levels of the reporting style clearly: the mean quantity of model-written text per run is $205$ characters at level $0$ and $386$ at level $1$. Compliance with the remaining instructions is partial. The fixed budget is followed in $89\%$ of runs, the adaptive rule in only $20\%$. The stopping-rule effects reported above are therefore the effect of offering an adaptive budget, not the effect of a loop that terminates on diminishing returns. Search breadth is followed in $66\%$ of narrow runs and $82\%$ of broad runs, and exploit-first in $69\%$ of runs. All estimates in Table~\ref{tab:main} are consequently intention-to-treat estimates, attenuated towards zero in proportion to the non-compliance rate of the component concerned.
 
 \subsection{Discussion and further considerations}
 \label{sec:discussion}
 
-The recovered effect structure is concentrated on process rather than on outcome. The wasted trial ratio responds to four of the five components, the largest being the reporting style at $-0.075$, which reduces the mean ratio from $0.106$ to $0.032$. The gain over default responds only to the stopping rule, by $+0.001$ on the accuracy scale, which is smaller in absolute value than the $-0.0014$ contributed by the choice of dataset. The improvement rate responds to the stopping rule ($+0.032$) and to search breadth ($-0.028$). The cost to best responds to no component at the adjusted $0.05$ level. Among the two-way interactions only $S\times O$ ($-0.031$) is comparable in magnitude to a main effect, and it indicates substitution rather than reinforcement.
+The recovered effect structure is concentrated on process rather than on outcome. The wasted trial ratio responds to four of the five components, the largest being the reporting style at $-0.075$, which reduces the mean ratio from $0.106$ to $0.031$. The gain over default responds only to the stopping rule, by $+0.001$ on the accuracy scale, which is smaller in absolute value than the $-0.0013$ contributed by the choice of dataset. The improvement rate responds to the stopping rule ($+0.034$) and to search breadth ($-0.026$). The cost to best responds to no component at the adjusted $0.05$ level. Among the two-way interactions only $S\times O$ ($-0.031$) is comparable in magnitude to a main effect, and it indicates substitution rather than reinforcement.
 
-Two conclusions follow. First, within the range of wordings tested, the instruction file determines the efficiency of the search but not the quality of the configuration returned. Requiring the model to state its reasoning reduces the share of malformed and duplicate proposals by approximately two thirds, whereas no component produced a comparable change in the accuracy of the recommended configuration. Second, the outcome effects are bounded by the difficulty of the task. Default hyperparameters already achieve $a_0=0.960$ on both datasets, $41.3\%$ of runs improve on that value and $20.6\%$ terminate below it, so the available headroom is small. The measured effects are therefore effects on the efficiency with which a ceiling is approached, not on the level of that ceiling. Whether the same structure holds on tasks with greater headroom is not determined by this design.
+Two conclusions follow. First, within the range of wordings tested, the instruction file determines the efficiency of the search but not the quality of the configuration returned. Requiring the model to state its reasoning reduces the share of malformed and duplicate proposals by approximately two thirds, whereas no component produced a comparable change in the accuracy of the recommended configuration. Second, the outcome effects are bounded by the difficulty of the task. Default hyperparameters already achieve $a_0=0.960$ on both datasets, $40.0\%$ of runs improve on that value and $20.9\%$ terminate below it, so the available headroom is small. The measured effects are therefore effects on the efficiency with which a ceiling is approached, not on the level of that ceiling. Whether the same structure holds on tasks with greater headroom is not determined by this design.
 
 Three limitations bound what any of this shows. Everything is conditional on one agent model, so I have measured how instructions act on one policy, not a property of instructions at large. Each level is realised by a single generated paragraph, which leaves the effect of a component's level tangled with the effect of its particular wording; read the results as effects of specific instruction texts. And the tasks are tabular classification problems over a small discrete hyperparameter space. Whether the same effect structure appears in loops that search over code, or over open-ended hypotheses, is outside what this design can reach.
 
@@ -327,7 +318,7 @@ Three limitations bound what any of this shows. Everything is conditional on one
 
 In an autoresearch loop, \texttt{program.md} does the job that controller code does in ordinary software, but you cannot read it the way you read code. So I treated it as a configuration vector. Five components of \texttt{program.md} were written at two levels each, all $2^5=32$ configurations were generated and run against a real executor on two datasets with twenty replicates apiece, and the resulting behaviour was reduced to four outcome metrics and regressed on an orthogonal $\pm1$ coding of the components. Because I built the configurations instead of collecting them, the coefficients can be read causally. Because the factorial is complete, whether the components interact is something I can test rather than assume.
 
-The components determined the process rather than the outcome. The reporting style produced the largest effect in the design, reducing the mean wasted trial ratio from $0.106$ to $0.032$, and search breadth and the evaluation criterion moved the same metric by $-0.034$ and $-0.023$. The stopping rule was the only component with an effect on either outcome metric, $+0.001$ on the gain over default and $+0.032$ on the improvement rate, and no component determined the cost to best. Three of forty two-way interactions survived adjustment, all on the wasted trial ratio and all involving the reporting style, so the components may be treated as additive. On two of the four metrics the dataset fixed effect exceeded every component effect, which is the reason equation~\eqref{eq:regression} controls for it. For tasks of this difficulty the instruction file determines how the loop conducts its search rather than what the search returns.
+The components determined the process rather than the outcome. The reporting style produced the largest effect in the design, reducing the mean wasted trial ratio from $0.106$ to $0.031$, and search breadth and the evaluation criterion moved the same metric by $-0.034$ and $-0.023$. The stopping rule was the only component with an effect on either outcome metric, $+0.001$ on the gain over default and $+0.034$ on the improvement rate, and no component determined the cost to best. Three of forty two-way interactions survived adjustment, all on the wasted trial ratio and all involving the reporting style, so the components may be treated as additive. On two of the four metrics the dataset fixed effect exceeded every component effect, which is the reason equation~\eqref{eq:regression} controls for it. For tasks of this difficulty the instruction file determines how the loop conducts its search rather than what the search returns.
 
 The method is not tied to the five components I happened to vary. Any instruction file that can be cut into slots can be studied the same way, and full enumeration stays cheap while the number of slots is small. Two follow-ups are worth doing. Sampling several wordings per level would separate a component from its phrasing, which is the sharpest limitation above. Running the procedure on a loop that edits code, not hyperparameters, would test it where the instruction file carries far more of the system's behaviour.
 
