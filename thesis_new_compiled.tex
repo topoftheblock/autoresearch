@@ -28,17 +28,17 @@
 \section{Introduction}
 \label{sec:intro}
 
-In an autoresearch loop, the experimentation itself is performed by a language model. The model is given a goal, a body of code it may edit, and an executor that runs a trial and returns a scalar result. From that point it proceeds autonomously: it proposes a change, executes it, reads the outcome, decides what to attempt next, and repeats until the budget is exhausted. The current meaning of the term was fixed by Karpathy's \texttt{autoresearch} \cite{TODO_Karpathy_2026_Autoresearch}, which appeared in March 2026 and has since been forked several thousand times.
+In an autoresearch loop, the experimentation itself is performed by a language model. The model is given a goal, a body of code it may edit, and an executor that runs a trial and returns a scalar result. From that point it proceeds autonomously: it proposes a change, executes it, reads the outcome, decides what to attempt next, and repeats until the budget is exhausted. The current meaning of the term was fixed by Karpathy's \texttt{autoresearch} \cite{Karpathy2026autoresearch}, which appeared in March 2026 and has since been forked several thousand times.
 
-The architecture is a contract between three files, each with a single owner. \texttt{prepare.py} prepares the data and defines the score; it is modified by no one, so that every experiment is scored identically. \texttt{train.py} contains the model and the training loop and is edited only by the agent, while \texttt{program.md} contains the instructions and is edited only by the human. Each candidate is allocated five minutes of wall-clock time and yields a single number, validation bits per byte, so that trials are equally costly and directly comparable. Progress is enforced through version control: a change is committed and trained, the commit is retained if the score improved, and otherwise reverted by \texttt{git reset} \cite{TODO_Tuychiev_2026_Guide}. The repository only ever advances.
+The architecture is a contract between three files, each with a single owner. \texttt{prepare.py} prepares the data and defines the score; it is modified by no one, so that every experiment is scored identically. \texttt{train.py} contains the model and the training loop and is edited only by the agent, while \texttt{program.md} contains the instructions and is edited only by the human. Each candidate is allocated five minutes of wall-clock time and yields a single number, validation bits per byte, so that trials are equally costly and directly comparable. Progress is enforced through version control: a change is committed and trained, the commit is retained if the score improved, and otherwise reverted by \texttt{git reset} \cite{Tuychiev2026guide}. The repository only ever advances.
 
 What the system does not contain is orchestration code. There is neither a scheduler nor a driver program: the nine-step experiment cycle exists only as English prose within \texttt{program.md}, and the model itself constitutes the execution layer. \texttt{program.md} is therefore not configuration supplied to a controller; it is the controller.
 
 \subsection{Problem statement}
 
-Such loops demonstrably function, but the reasons for their behaviour remain unknown. The AI Scientist \cite{TODO_Lu_2024_AIScientist} and Coscientist \cite{TODO_Boiko_2023_Coscientist} are evaluated end to end, on whether the pipeline produced an acceptable artefact, and benchmarks such as MLAgentBench \cite{TODO_Huang_2024_MLAgentBench} report success rates across task suites. Industrial reports take the same form: an autoresearch run against a production template engine reduced parse-and-render time by $53\%$ over approximately one hundred and twenty experiments, a gain that its own author considered probably overfitted and that was never merged \cite{TODO_Lutke_2026_LiquidPR}. Such evidence establishes that a system can work; it does not establish which part of the instruction file was responsible.
+Such loops demonstrably function, but the reasons for their behaviour remain unknown. The AI Scientist \cite{Lu2024aiscientist} and Coscientist \cite{Boiko2023coscientist} are evaluated end to end, on whether the pipeline produced an acceptable artefact, and benchmarks such as MLAgentBench \cite{Huang2024mlagentbench} report success rates across task suites. Industrial reports take the same form: an autoresearch run against a production template engine reduced parse-and-render time by $53\%$ over approximately one hundred and twenty experiments, a gain that its own author considered probably overfitted and that was never merged \cite{Lutke2026liquid}. Such evidence establishes that a system can work; it does not establish which part of the instruction file was responsible.
 
-The obstacle to such an attribution is confounding, since an instruction file settles several matters simultaneously: what counts as success, how widely the agent may search, when it must stop, how it must report, and where effort should be concentrated. When two differently worded files are compared, every sentence differs, and no individual effect is identified. Work on prompt sensitivity sharpens the problem further: formatting choices that preserve meaning can shift accuracy by as much as 76 points \cite{TODO_Sclar_2024_FormatSpread}, whereas models sometimes perform equally well on instructions that are irrelevant or actively misleading \cite{TODO_Webson_2022_PromptMeaning}. Wording evidently matters, but inspection of the wording does not reveal how. The question is an empirical one.
+The obstacle to such an attribution is confounding, since an instruction file settles several matters simultaneously: what counts as success, how widely the agent may search, when it must stop, how it must report, and where effort should be concentrated. When two differently worded files are compared, every sentence differs, and no individual effect is identified. Work on prompt sensitivity sharpens the problem further: formatting choices that preserve meaning can shift accuracy by as much as 76 points \cite{Sclar2024formatspread}, whereas models sometimes perform equally well on instructions that are irrelevant or actively misleading \cite{Webson2022prompts}. Wording evidently matters, but inspection of the wording does not reveal how. The question is an empirical one.
 
 \subsection{Objective and contribution}
 
@@ -105,7 +105,7 @@ c = (c_1,\ldots,c_5), \qquad c_i \in \{0,1\},
 \]
 where the slots are taken in the order metric, breadth, stopping rule, output format and emphasis, yielding $2^5 = 32$ files.
 
-Table~\ref{tab:axes} lists the levels, which were not invented for this study: a production \texttt{program.md} hardcodes the baseline to be exceeded, specifies how failures are to be handled, fixes a reporting discipline and imposes a parsimony rule \cite{TODO_Tuychiev_2026_Guide}; the five components below are drawn from those categories.
+Table~\ref{tab:axes} lists the levels, which were not invented for this study: a production \texttt{program.md} hardcodes the baseline to be exceeded, specifies how failures are to be handled, fixes a reporting discipline and imposes a parsimony rule \cite{Tuychiev2026guide}; the five components below are drawn from those categories.
 
 \begin{table}[t]
 \centering
@@ -329,41 +329,44 @@ The method is not tied to the five components varied here. Any instruction file 
 
 \begin{thebibliography}{99}
 
-\bibitem{TODO_Lutke_2026_LiquidPR}
+\bibitem{Lutke2026liquid}
 T. L\"utke. Performance: 53\% faster parse+render, 61\% fewer allocations.
 Pull request \#2056, Shopify/liquid, 2026. Produced by an autoresearch run of
 approximately 120 experiments over 93 commits; unmerged at the time of writing.
 \url{https://github.com/Shopify/liquid/pull/2056}.
 
-\bibitem{TODO_Tuychiev_2026_Guide}
+\bibitem{Tuychiev2026guide}
 B. Tuychiev. A guide to Andrej Karpathy's AutoResearch: automating ML with AI
 agents. DataCamp tutorial, 23 March 2026. Secondary source; it reports the
 contents of the repository's \texttt{program.md} and results log.
 \url{https://www.datacamp.com/tutorial/guide-to-autoresearch}.
 
-\bibitem{TODO_Boiko_2023_Coscientist}
+\bibitem{Boiko2023coscientist}
 D. A. Boiko, R. MacKnight, B. Kline, and G. Gomes. Autonomous chemical research
 with large language models. Nature, 624(7992):570--578, 2023.
+doi:10.1038/s41586-023-06792-0.
 
-\bibitem{TODO_Huang_2024_MLAgentBench}
+\bibitem{Huang2024mlagentbench}
 Q. Huang, J. Vora, P. Liang, and J. Leskovec. MLAgentBench: Evaluating language
-agents on machine learning experimentation. ICML, 2024. arXiv:2310.03302.
+agents on machine learning experimentation. In Proceedings of the 41st
+International Conference on Machine Learning (ICML), PMLR 235:20271--20309,
+2024. arXiv:2310.03302.
 
-\bibitem{TODO_Karpathy_2026_Autoresearch}
+\bibitem{Karpathy2026autoresearch}
 A. Karpathy. autoresearch: AI agents running research on single-GPU nanochat
 training automatically. GitHub repository, 2026.
 \url{https://github.com/karpathy/autoresearch}.
 
-\bibitem{TODO_Lu_2024_AIScientist}
+\bibitem{Lu2024aiscientist}
 C. Lu, C. Lu, R. T. Lange, J. Foerster, J. Clune, and D. Ha. The AI Scientist:
 Towards fully automated open-ended scientific discovery, 2024. arXiv:2408.06292.
 
-\bibitem{TODO_Sclar_2024_FormatSpread}
+\bibitem{Sclar2024formatspread}
 M. Sclar, Y. Choi, Y. Tsvetkov, and A. Suhr. Quantifying language models'
 sensitivity to spurious features in prompt design, or: How I learned to start
 worrying about prompt formatting. ICLR, 2024. arXiv:2310.11324.
 
-\bibitem{TODO_Webson_2022_PromptMeaning}
+\bibitem{Webson2022prompts}
 A. Webson and E. Pavlick. Do prompt-based models really understand the meaning
 of their prompts? NAACL-HLT, pages 2300--2344, 2022.
 
