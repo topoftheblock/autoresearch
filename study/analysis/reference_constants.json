@@ -3,16 +3,30 @@
     "dataset": "breast_cancer",
     "a0_cv": 0.959778,
     "a0_val": 0.953216,
-    "a_star_cv": 0.96981,
-    "a_star_val": 0.976608,
-    "grid_points_evaluated": 136
+    "a0_by_family": {
+      "gradient_boosting": {
+        "cv": 0.944747,
+        "val": 0.935673
+      },
+      "random_forest": {
+        "cv": 0.959778,
+        "val": 0.953216
+      }
+    }
   },
   "wine": {
     "dataset": "wine",
     "a0_cv": 0.96,
     "a0_val": 1.0,
-    "a_star_cv": 0.968,
-    "a_star_val": 1.0,
-    "grid_points_evaluated": 136
+    "a0_by_family": {
+      "gradient_boosting": {
+        "cv": 0.928,
+        "val": 0.981481
+      },
+      "random_forest": {
+        "cv": 0.96,
+        "val": 1.0
+      }
+    }
   }
 }

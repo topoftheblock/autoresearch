@@ -1,0 +1,15 @@
+# Smoke-test output: regenerated on every `python3 run_experiment.py --dry-run`.
+study/dry_run_out/
+
+# Full-study output: real transcripts and the fitted tables. Kept out of git
+# because a run writes 1280 transcripts; back it up separately.
+study/results_full/
+
+__pycache__/
+*.pyc
+.DS_Store
+
+# Project-local virtual environment. Every version is pinned in
+# study/requirements.txt, so this is reproducible rather than tracked:
+#   python3 -m venv study/.venv \&\& study/.venv/bin/pip install -r study/requirements.txt
+study/.venv/

@@ -10,6 +10,14 @@
 \usepackage{caption}
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric,arrows}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{compat=1.18}
+\usepackage{listings}
+\lstdefinestyle{src}{basicstyle=\ttfamily\scriptsize\linespread{0.90}\selectfont, breaklines=true,
+  breakindent=0pt, columns=fullflexible, keepspaces=true, frame=none,
+  aboveskip=4pt, belowskip=4pt, xleftmargin=0pt, showstringspaces=false,
+  escapeinside={(*@}{@*)}}
 \emergencystretch=3em
 \title{Autoresearch Loops:\\Causal Study of the Instruction File}
 \author{Christian Block\\\small Research project with Prof.\ Ramesh}
@@ -20,41 +28,30 @@
 \section{Introduction}
 \label{sec:intro}
 
-In an autoresearch loop, a language model does the experimenting. It is given a goal, some code it may edit, and an executor that runs a trial and hands back a number. From there it works on its own: propose a change, run it, read the result, decide what to try next, and repeat until the budget runs out. Karpathy's \texttt{autoresearch} \cite{TODO_Karpathy_2026_Autoresearch} fixed the current meaning of the term when it appeared in March 2026, and it has been forked several thousand times since.
+In an autoresearch loop, the experimentation itself is performed by a language model. The model is given a goal, a body of code it may edit, and an executor that runs a trial and returns a scalar result. From that point it proceeds autonomously: it proposes a change, executes it, reads the outcome, decides what to attempt next, and repeats until the budget is exhausted. The current meaning of the term was fixed by Karpathy's \texttt{autoresearch} \cite{TODO_Karpathy_2026_Autoresearch}, which appeared in March 2026 and has since been forked several thousand times.
 
-The architecture is a contract between three files, each with one owner. \texttt{prepare.py} prepares the data and defines the score. Nobody may touch it, so every experiment is scored the same way. \texttt{train.py} holds the model and the training loop, and only the agent edits it. \texttt{program.md} holds the instructions, and only the human edits it. Every candidate gets five minutes of wall clock and one number, validation bits per byte, so trials cost the same and compare directly. The loop ratchets through git: commit a change, train, keep the commit if the score improved, otherwise \texttt{git reset} back \cite{TODO_Tuychiev_2026_Guide}. The repository only ever moves forward.
+The architecture is a contract between three files, each with a single owner. \texttt{prepare.py} prepares the data and defines the score; it is modified by no one, so that every experiment is scored identically. \texttt{train.py} contains the model and the training loop and is edited only by the agent, while \texttt{program.md} contains the instructions and is edited only by the human. Each candidate is allocated five minutes of wall-clock time and yields a single number, validation bits per byte, so that trials are equally costly and directly comparable. Progress is enforced through version control: a change is committed and trained, the commit is retained if the score improved, and otherwise reverted by \texttt{git reset} \cite{TODO_Tuychiev_2026_Guide}. The repository only ever advances.
 
-What the system does not contain is any orchestration code. There is no scheduler and no driver program. The nine-step experiment cycle exists only as English prose inside \texttt{program.md}, and the model is the execution layer. So \texttt{program.md} is not configuration handed to a controller. It is the controller.
+What the system does not contain is orchestration code. There is neither a scheduler nor a driver program: the nine-step experiment cycle exists only as English prose within \texttt{program.md}, and the model itself constitutes the execution layer. \texttt{program.md} is therefore not configuration supplied to a controller; it is the controller.
 
 \subsection{Problem statement}
 
-We know these loops work. We do not know why they behave as they do. The AI Scientist \cite{TODO_Lu_2024_AIScientist} and Coscientist \cite{TODO_Boiko_2023_Coscientist} are judged end to end, on whether the pipeline produced something acceptable, and benchmarks like MLAgentBench \cite{TODO_Huang_2024_MLAgentBench} report success rates over task suites. Industry reports the same shape of result. An autoresearch run against a production template engine cut parse-and-render time by $53\%$ over about one hundred and twenty experiments, a gain its own author called probably overfitted and which was never merged \cite{TODO_Lutke_2026_LiquidPR}. All of this shows a system can work. None of it says which part of the instruction file did the work.
+Such loops demonstrably function, but the reasons for their behaviour remain unknown. The AI Scientist \cite{TODO_Lu_2024_AIScientist} and Coscientist \cite{TODO_Boiko_2023_Coscientist} are evaluated end to end, on whether the pipeline produced an acceptable artefact, and benchmarks such as MLAgentBench \cite{TODO_Huang_2024_MLAgentBench} report success rates across task suites. Industrial reports take the same form: an autoresearch run against a production template engine reduced parse-and-render time by $53\%$ over approximately one hundred and twenty experiments, a gain that its own author considered probably overfitted and that was never merged \cite{TODO_Lutke_2026_LiquidPR}. Such evidence establishes that a system can work; it does not establish which part of the instruction file was responsible.
 
-The obstacle is confounding. An instruction file settles several things at once: what counts as success, how widely the agent may search, when it must stop, how it must report, where to spend effort. Compare two differently worded files and every sentence differs, so nothing is identified. Work on prompt sensitivity makes the problem sharper. Formatting choices that preserve meaning can move accuracy by 76 points \cite{TODO_Sclar_2024_FormatSpread}, while models sometimes do just as well on instructions that are irrelevant or actively misleading \cite{TODO_Webson_2022_PromptMeaning}. Wording matters, and reading the wording will not tell you how. That is when you run an experiment.
-
-\subsection{Related work}
-
-Three areas of work are relevant here. None of them answers the question.
-
-The \emph{agent architectures} that made the loop possible fixed the propose--act--observe template. ReAct interleaves reasoning traces with actions \cite{TODO_Yao_2023_ReAct}. Reflexion adds a verbal self-critique the agent carries into the next trial \cite{TODO_Shinn_2023_Reflexion}. SWE-agent supplies a restricted interface for edit-and-test cycles over a repository \cite{TODO_SWE_Agent_2024}, and the Ralph technique keeps long runs stable by holding state in files instead of a context window \cite{TODO_Huntley_Ralph_2025}. Structurally this is a control loop of the kind autonomic computing described \cite{TODO_Kephart_2003_Autonomic} and the Kubernetes controller implements \cite{TODO_Burns_K8s_2016}: compare an observed state against a declared one, act to close the gap, repeat forever. But there is one big difference. A controller's logic is code you can open and read. Ours is a paragraph of English.
-
-\emph{Attribution methods} for configurable systems are mature, but they grew up around formally declared hyperparameter spaces. Functional ANOVA splits the variance of a performance measure into per-hyperparameter shares \cite{hutter2014fanova}. Ablation analysis walks between two configurations and charges the performance gap to the individual differences \cite{fawcetthoos}. Factorial designs, classically the Plackett--Burman construction \cite{plackettburman}, supply the runs both techniques need. Once the configuration is written in English, none of this has an established counterpart.
-
-\emph{Causal inference for text} supplies the vocabulary. Feder et al.\ set out the cases where text is an outcome, a treatment, or a confounder \cite{TODO_Feder_2021_CausalNLP}. The treatment case is ours: the instruction file is the treatment, the loop's behaviour is the outcome, and the components of the file normally move together.
+The obstacle to such an attribution is confounding, since an instruction file settles several matters simultaneously: what counts as success, how widely the agent may search, when it must stop, how it must report, and where effort should be concentrated. When two differently worded files are compared, every sentence differs, and no individual effect is identified. Work on prompt sensitivity sharpens the problem further: formatting choices that preserve meaning can shift accuracy by as much as 76 points \cite{TODO_Sclar_2024_FormatSpread}, whereas models sometimes perform equally well on instructions that are irrelevant or actively misleading \cite{TODO_Webson_2022_PromptMeaning}. Wording evidently matters, but inspection of the wording does not reveal how. The question is an empirical one.
 
 \subsection{Objective and contribution}
 
-This project stops treating the instruction file as prose and treats it as a configuration vector. Five components of \texttt{program.md} are each written at two levels. All $2^5 = 32$ combinations are generated and run against a real executor, which separates the effect of each component instead of assuming it. The contribution is a method, not an architecture. We do not offer a better autoresearch loop. We offer a way to find out what an existing one is responding to, and we report the effects the method finds together with the ones it rules out.
+This project treats the instruction file not as prose but as a configuration vector. Five components of \texttt{program.md} are each written at two levels, and all $2^5 = 32$ combinations are generated and executed against a real executor, which separates the effect of each component instead of assuming it. The contribution is accordingly a method rather than an architecture: the aim is not to propose a superior autoresearch loop, but to establish what an existing one is responding to.
 
-The scope is narrow on purpose. Nothing here compares the loop to a human researcher. There is no human baseline and no external standard of good research practice. Every comparison is between two configurations of the same system.
+The scope is deliberately narrow: no comparison is drawn between the loop and a human researcher, and neither a human baseline nor an external standard of good research practice is invoked. Every comparison is made between two configurations of the same system.
 
 \begin{enumerate}
 \item[\textbf{RQ1}] Which components of \texttt{program.md} causally determine which aspects of the loop's research \emph{process}, and how large is each effect?
-\item[\textbf{RQ2}] Do any of these components move the \emph{outcome} the loop reaches, once the outcome is measured on a scale that is not saturated by the task, and for which of them can an effect larger than a pre-specified threshold be excluded?
-\item[\textbf{RQ3}] Do the components interact, and how much error does the eight-run fractional design used in earlier work incur by assuming that they do not?
+\item[\textbf{RQ2}] Do the components act independently of one another, or does the effect of one depend on the level of another?
 \end{enumerate}
 
-Section~\ref{sec:background} sets out the loop and its configuration space. Section~\ref{sec:eval} covers the design, the results and what they mean. Section~\ref{sec:conclusion} closes.
+The remainder of the paper is organised as follows. Section~\ref{sec:background} sets out the loop and its configuration space, Section~\ref{sec:eval} presents the design, the results and their interpretation, and Section~\ref{sec:conclusion} concludes.
 
 
 \section{Background}
@@ -63,9 +60,9 @@ Section~\ref{sec:background} sets out the loop and its configuration space. Sect
 \subsection{The loop under study}
 \label{sec:loop}
 
-Our loop follows the protocol above with one narrowing: the search space is a hyperparameter space, not arbitrary code, so that the instruction file stays the only free variable. The file arrives once as the system message and never changes after that. The model then alternates between two moves, each a single JSON object. A \texttt{propose} carries a hypothesis, a model family and hyperparameter values. An \texttt{interpret} carries a reading of the last measurement and a decision to continue or stop.
+The loop examined here follows the protocol described above, subject to one narrowing: the search space is a hyperparameter space rather than arbitrary code, so that the instruction file remains the only free variable. The file is supplied once as the system message and is not modified thereafter. The model then alternates between two moves, each expressed as a single JSON object. A \texttt{propose} carries a hypothesis, a model family and a set of hyperparameter values, whereas an \texttt{interpret} carries a reading of the most recent measurement together with a decision to continue or to stop.
 
-The harness does the executing. It validates each proposal against a fixed whitelist and fits the estimator with scikit-learn. The model never computes a number. It picks what gets computed and reads the answer back. Every value in a transcript is thus traceable: it came from the executor, making it a fact about the task, or from the model, making it a fact about the loop's behaviour. Figure~\ref{fig:loop} shows the control flow.
+Execution is performed by the harness, which validates each proposal against a fixed whitelist and fits the estimator using scikit-learn. The model never computes a number; it selects what is computed and reads the result. Every value in a transcript can be traced to one of two origins: it was produced by the executor, in which case it is a fact about the task, or by the model, in which case it is a fact about the loop's behaviour. Figure~\ref{fig:loop} shows the resulting control flow.
 
 \begin{figure}[t]
 \centering
@@ -102,13 +99,13 @@ The harness does the executing. It validates each proposal against a fixed white
 \subsection{The instruction file as a configuration}
 \label{sec:axes}
 
-Every instruction file comes out of one template. The fixed part gives the research question, the executor interface and the JSON response format, and is byte-identical across all thirty-two files. The variable part is five paragraphs, each written at one of two levels. Those five slots are the independent variables. Nothing else in the file moves. A file is then described completely by
+Every instruction file is generated from a single template. The fixed part specifies the research question, the executor interface and the JSON response format, and is byte-identical across all thirty-two files. The variable part consists of five paragraphs, each written at one of two levels; these five slots constitute the independent variables, and nothing else in the file varies. A file is described completely by
 \[
 c = (c_1,\ldots,c_5), \qquad c_i \in \{0,1\},
 \]
-taking the slots in the order metric, breadth, stopping rule, output format, emphasis. That gives $2^5 = 32$ files.
+where the slots are taken in the order metric, breadth, stopping rule, output format and emphasis, yielding $2^5 = 32$ files.
 
-Table~\ref{tab:axes} lists the levels. They are not invented for this study. A real \texttt{program.md} hardcodes the baseline to beat, says how failures should be handled, fixes a reporting discipline and imposes a parsimony rule \cite{TODO_Tuychiev_2026_Guide}, and the five components below come from those categories.
+Table~\ref{tab:axes} lists the levels, which were not invented for this study: a production \texttt{program.md} hardcodes the baseline to be exceeded, specifies how failures are to be handled, fixes a reporting discipline and imposes a parsimony rule \cite{TODO_Tuychiev_2026_Guide}; the five components below are drawn from those categories.
 
 \begin{table}[t]
 \centering
@@ -128,14 +125,14 @@ $E$ & Search emphasis & Explore first: several different configurations before r
 \end{tabular}
 \end{table}
 
-A language model writes the ten paragraphs from fixed meta-prompts. They are then frozen and reused word for word. This is a control. Had we written them ourselves, the wording of every treatment would have been a free parameter tangled up with our own stylistic habits, and no measured effect could be separated from it. The generator is a different model from the agent. Each paragraph is checked to entail its intended level and to say nothing about any other slot, and the two levels of a slot are matched to within ten per cent in token count.
+The ten paragraphs are written by a language model from fixed meta-prompts, then frozen and reused verbatim. This procedure is a control: had the paragraphs been composed by the author, the wording of every treatment would have constituted a free parameter confounded with the author's own stylistic habits, and no measured effect could have been separated from it. The generating model is distinct from the agent. Each paragraph is verified to entail its intended level and to make no reference to any other slot, and the two levels of a given slot are matched to within ten per cent in token count.
 
 \subsection{Configuration change as intervention}
 \label{sec:intervention}
 
-We construct the configurations. For each of the thirty-two values of $c$ we generate the file and run it. In observational prompt data the components would correlate, since whoever writes a precise success criterion probably also writes a careful stopping rule. Construction breaks that correlation. Across the thirty-two files each component sits at level 1 in exactly sixteen, and inside each half the other four stay balanced. The difference in mean outcome between runs with $c_i=1$ and runs with $c_i=0$ cannot then be produced by any other component. Confounding goes away by intervention, without any statistical adjustment.
+The configurations are constructed rather than observed: for each of the thirty-two values of $c$ the corresponding file is generated and executed. In observational prompt data the components would be correlated, since an author who writes a precise success criterion is also likely to write a careful stopping rule. Construction breaks that correlation. Across the thirty-two files, each component is at level 1 in exactly sixteen, and within each half the remaining four components remain balanced. The difference in mean outcome between runs with $c_i=1$ and runs with $c_i=0$ therefore cannot be produced by any other component. Confounding is eliminated by the design itself, with no statistical adjustment.
 
-Five main effects do not need thirty-two files. Eight will do, which is what the Plackett--Burman designs \cite{plackettburman} and the earlier study rely on. The catch is that a fraction cannot pull interactions apart from main effects: in an eight-run design each estimate is a main effect plus a sum of interaction terms, and nothing inside the fraction can test whether that sum is small. Running all thirty-two removes the catch, turns component independence into a finding, and lets us audit the earlier study's assumption directly. The price is thirty-two cells instead of eight. At this scale we can afford it.
+Executing the complete space yields more than the five main effects. Given all thirty-two files, every pairwise interaction is estimated separately from every main effect, so that the independence of the components becomes a question answerable from the data. A design covering only part of the space must instead assume an answer, since the runs required to distinguish a main effect from an interaction are precisely those it omits. Thirty-two cells is the cost of avoiding that assumption, and at this scale the cost is acceptable.
 
 
 \section{Numerical Evaluation}
@@ -144,33 +141,34 @@ Five main effects do not need thirty-two files. Eight will do, which is what the
 \subsection{Experimental setup}
 \label{sec:setup}
 
-\paragraph{Tasks and executor.} Every configuration runs against two canonical tabular classification datasets, picked to differ in size, dimensionality and class count: Breast Cancer Wisconsin ($569 \times 30$, two classes) and Wine ($178 \times 13$, three classes). Each uses one stratified $70/30$ partition, fixed with the same seed everywhere. The loop may reach for \texttt{RandomForestClassifier} or \texttt{GradientBoostingClassifier} under a fixed hyperparameter whitelist. Whatever a configuration's evaluation paragraph stresses, the executor returns the same record every time: five-fold cross-validated accuracy, its across-fold standard deviation, and held-out validation accuracy. The instruction file changes what the loop attends to. It never changes what gets measured.
+\paragraph{Tasks and executor.} Every configuration is executed against two canonical tabular classification datasets, selected to differ in size, dimensionality and number of classes: Breast Cancer Wisconsin ($569 \times 30$, two classes) and Wine ($178 \times 13$, three classes). Each employs a single stratified $70/30$ partition, fixed with the same seed throughout. The loop may select either \texttt{RandomForestClassifier} or \texttt{GradientBoostingClassifier} under a fixed hyperparameter whitelist. Whatever a configuration's evaluation paragraph emphasises, the executor returns an identical record in every case: five-fold cross-validated accuracy, its across-fold standard deviation, and held-out validation accuracy. The instruction file alters what the loop attends to; it does not alter what is measured.
 
-\paragraph{Baselines.} Two reference points are computed per dataset before any run, by procedures that involve no language model. $a_0(d)$ is a default-hyperparameter fit. $a^{\star}(d)$ is an exhaustive grid search over the whitelist the loop may use. They are not a bar the loop has to clear; they exist to put tasks of different difficulty on one scale. A third baseline is methodological: the eight-run fractional design from the earlier study, which Section~\ref{sec:validation} compares against the full design. We measured the headroom instead of assuming it. The cross-validated gap $a^{\star}-a_0$ is $0.0100$ on the first dataset and $0.0080$ on the second, so both support a regret measurement. On the validation scale the second dataset has no headroom at all: its 54-instance split is classified perfectly by defaults. We report that dataset on the cross-validated scale only.
+\paragraph{Baseline.} A single reference quantity is computed per dataset prior to any run, by a procedure involving no language model. The quantity $a_0(d)$ is the accuracy of a default-hyperparameter fit, taken as the better of the two model families, and every run is measured against it. No exhaustive grid search is required, which keeps the reference inexpensive and excludes an estimated quantity from the measurement.
 
-\paragraph{Control of non-treatment variation.} These are held fixed and so cannot explain any measured effect: the agent model, pinned to the dated snapshot \texttt{gpt-4o-mini-2024-07-18} instead of a moving alias; the decoding temperature, one value for every run; the partition and its seed; the executor and its whitelist; the fixed part of the template; the response format; and the harness safety cap. Runs are separate conversations, so nothing carries over between them.
+One limitation of the task suite follows from this procedure. The 54-instance validation split of the second dataset is classified perfectly by default hyperparameters, so that $a_0$ equals $1.0$ and no run can improve upon it. On that task the gain is measured on the cross-validated scale alone. This is a property of the task, not of the metric.
 
-Sampling noise is different. We control it instead of removing it. Every run passes an explicit sampling seed to the model interface, so any run can be regenerated exactly, and every cell draws from the same seed list, so the draws cannot favour one configuration. Greedy decoding at temperature zero would be the wrong move here. Run-to-run variance is the error term that every coefficient below is tested against, and a deterministic loop drives it to zero, taking every standard error with it. We hold temperature constant and above zero, which makes it a controlled constant. When a run fails to produce a valid experiment it is repeated with a fresh seed until the cell holds exactly $R$ completed runs, so balance survives by construction.
+\paragraph{Control of non-treatment variation.} These are held fixed and so cannot explain any measured effect: the agent model, pinned to the dated snapshot \texttt{gpt-4o-mini-2024-07-18} instead of a moving alias; the decoding temperature, one value for every run; the partition and its seed; the executor and its whitelist; the fixed part of the template; the response format; and the harness safety caps. Runs are separate conversations, so nothing carries over between them.
 
-\paragraph{Design and budget.} The design is the complete $2^5$ factorial crossed with the task suite and replicated $R$ times, giving $N = 2^5 \cdot D \cdot R$ runs. We set $D=2$ and $R=20$, so $N=1280$. That replicate count is not convenience. It fixes the smallest detectable level switch at $0.22\,\sigma$ per dataset, about six per cent of the interval between an untuned fit and an exhaustive search.
+Sampling noise is treated differently: it is controlled rather than eliminated. Every run passes an explicit sampling seed to the model interface, so that any run can be regenerated exactly, and every cell draws from the same seed list, so that the draws cannot favour one configuration. Greedy decoding at temperature zero would be inappropriate here, since run-to-run variance constitutes the error term against which every coefficient below is tested; a deterministic loop would drive that variance to zero and with it every standard error. The temperature is held constant and strictly above zero, which renders it a controlled constant. When a run fails to produce a valid experiment it is repeated with a fresh seed until the cell contains exactly $R$ completed runs, so that balance is preserved by construction.
+
+\paragraph{Design and budget.} The design is the complete $2^5$ factorial crossed with the task suite and replicated $R$ times, giving $N = 2^5 \cdot D \cdot R$ runs. With $D=2$ and $R=20$, this yields $N=1280$. The replicate count was not chosen for convenience: it fixes the smallest detectable level switch at $0.22\,\sigma$ per dataset, where $\sigma$ denotes the run-to-run standard deviation of whichever metric is being fitted.
 
 \subsection{Performance metrics}
 \label{sec:metrics}
 
-Metrics come straight off the structured transcript. No evaluation framework, scoring library or judge model is involved, because every metric is a count over declared action types, a spread over proposed values, or an accuracy the executor returned.
+The metrics are derived directly from the structured transcript. No evaluation framework, scoring library or judge model is involved, since every metric is a difference in accuracy, a proportion of the proposals, or a count of executor calls.
 
-\paragraph{Measurement window.} The stopping rule sets how many experiments a run performs, and several metrics aggregate over those experiments. A spread across more proposals is wider in expectation, and a best-of-$n$ accuracy improves with $n$ for reasons that have nothing to do with how well the loop searched. Every metric is computed over the first three experiments, the number the fixed-budget level performs and so the number every run has. Complete-run values appear separately.
+\paragraph{Measurement window.} The stopping rule determines how many experiments a run performs, and every metric below aggregates over those experiments. A best score improves with the number of trials for reasons unrelated to the quality of the search, and a ratio computed over more proposals is estimated more precisely. Every metric is computed over the first three experiments, this being the number performed at the fixed-budget level and hence the number available in every run. Complete-run values are reported separately.
 
-\paragraph{Process metrics.} The \textbf{number of experiments} counts executor calls. The \textbf{number of model families tried} tells us whether the breadth component's permission was ever used. The \textbf{search width} is the spread of values tried for the hyperparameter both families share, normalised by its admissible range. The \textbf{refinement rate} is the share of proposals that perturb their predecessor locally, this is how explore-versus-exploit shows up in the transcript.
+\paragraph{Outcome metrics.} The gain over default is the difference between the score of the configuration finally recommended by the run and $a_0(d)$. It addresses the primary question concerning the result, namely whether the loop achieved any improvement. A negative value indicates that the run terminated on a configuration inferior to untuned defaults.
 
-\paragraph{Outcome metrics.} Raw accuracy does not work across tasks of different difficulty, and a task at its ceiling looks exactly like a component with no effect. The primary outcome is the \textbf{normalised regret}
-\begin{equation}
-\mathrm{reg}(\tau,d) \;=\; \frac{a^{\star}(d) - a_{\text{best}}(\tau)}{a^{\star}(d) - a_{0}(d)},
-\label{eq:regret}
-\end{equation}
-where $\mathrm{reg}=0$ means the loop matched an exhaustive search and $\mathrm{reg}=1$ means it did no better than defaults. Negative values are kept rather than clipped, since clipping shifts configuration means by different amounts. The secondary outcome is \textbf{regret per executor call}. One thing to watch: the evaluation-criterion component at level 1 names the exact quantity regret is built from, so part of any effect it shows is just the treatment agreeing with the instrument. We compute regret on the cross-validated and the validation scale both, and claim an effect for that component only if it survives on each.
+The improvement rate is the proportion of executed trials whose score is strictly higher than the best score observed earlier in the same run. A run of eight trials containing a single improvement approaches random search, whereas a high rate constitutes evidence that the interpret step is informing the next proposal.
 
-\paragraph{Instrumentation metric.} The \textbf{mean length of stated hypotheses} is a crude verbosity proxy and holds no interest of its own. We include it because we already know what the answer should be: the reporting-style component tells the loop directly how much to write. If the estimation fails to name that component as the driver, the pipeline is broken and the rest of the results cannot be trusted. Four components have such a counterpart. The evaluation criterion has none by design, since it prescribes no action, so a null main effect there says nothing about the instrument.
+\paragraph{Efficiency metrics.} The wasted trial ratio is the number of proposals rejected before execution, whether malformed or invalid against the whitelist, together with the number that exactly duplicate an earlier proposal in the same run, divided by the total number of proposals attempted. Both failure modes consume a turn without yielding a measurement. A high ratio indicates that the loop is either failing to satisfy the response format or failing to consult its own transcript.
+
+The cost to best is the number of executor calls made up to and including the call that produced the highest score of the run, the earliest such call being taken in the event of ties. Exploration subsequent to that point is not counted. Since every executed trial consumes the same fixed budget, this quantity represents the computation expended in reaching the result.
+
+One qualification is required. The evaluation-criterion component at level 1 names cross-validated accuracy, which is the scale on which the gain over default is computed, so that part of any effect exhibited by that component reflects agreement between the treatment and the instrument. For the first dataset the gain on held-out validation accuracy is reported as a robustness check, and an effect is claimed for that component only where both scales agree. The second dataset admits no such check, for the reason given in Section~\ref{sec:setup}.
 
 \subsection{Regression model and inference}
 \label{sec:regression}
@@ -183,17 +181,17 @@ X_i = \begin{cases} +1 & \text{if component } i \text{ is at level } 1,\\ -1 & \
 \end{equation}
 and model the outcome of one run as
 \begin{equation}
-Y \;=\; \beta_0 + \sum_{i=1}^{5}\beta_i X_i + \varepsilon ,
+Y \;=\; \beta_0 + \sum_{i=1}^{5}\beta_i X_i + \sum_{j=2}^{D}\gamma_j D_j + \varepsilon ,
 \label{eq:regression}
 \end{equation}
-with $\beta_0$ the mean across configurations, $\beta_i$ the effect of component $i$, and $\varepsilon$ run-to-run error. One regression per metric per dataset. Each $X_i$ takes each value equally often and independently of the rest, so $\hat\beta_i$ does not shift when another component enters or leaves the model, and $2\beta_i$ is the average change in $Y$ from switching component $i$. Running all thirty-two configurations buys the interaction model for free,
+where $D_j$ indicates that the run was made on dataset $j$, the first dataset serving as the reference level. The $\gamma_j$ are dataset fixed effects: they absorb the inherent difficulty of each task, its headroom above $a_0(d)$ and its response to the whitelist, which would otherwise sit in the residual and inflate every standard error. Because the factorial is crossed with the task suite, each $X_i$ is orthogonal to every $D_j$ by construction, so the $\hat\beta_i$ are within-task effects of the architectural components and are not contaminated by which tasks happen to be easy. Here $\beta_0$ denotes the mean across configurations on the reference dataset, $\beta_i$ the effect of component $i$, and $\varepsilon$ run-to-run error. Each $X_i$ assumes each value equally often and independently of the remainder, so that $\hat\beta_i$ does not shift when another component enters or leaves the model, and $2\beta_i$ is the average change in $Y$ produced by switching component $i$. Since all thirty-two configurations are executed, the interaction model is obtained at no additional cost,
 \begin{equation}
-Y \;=\; \beta_0 + \sum_{i=1}^{5}\beta_i X_i + \sum_{1\le i<j\le 5}\beta_{ij}X_iX_j + \varepsilon ,
+Y \;=\; \beta_0 + \sum_{i=1}^{5}\beta_i X_i + \sum_{1\le i<j\le 5}\beta_{ij}X_iX_j + \sum_{j=2}^{D}\gamma_j D_j + \varepsilon ,
 \label{eq:interaction}
 \end{equation}
-which is how RQ3 gets tested.
+which is how RQ2 is tested.
 
-We fit by ordinary least squares on the individual runs, not the cell means. Balance means the coefficients come out the same either way, while the error term now reflects real run-to-run scatter. Balance would also equalise the standard errors if the error variance were constant, and it is not: the stopping rule pins the experiment count at one level and frees it at the other, so within-cell variance differs systematically between the two halves of the design. We use heteroskedasticity-consistent standard errors throughout, and fit two metrics on their natural scale, the family count being binary and the refinement rate a proportion. Benjamini--Hochberg adjustment handles multiplicity, with the family taken as the coefficients of one model on one metric and dataset. Claiming a component has \emph{no} effect takes more than failing to find one, so we fix a smallest effect of interest in advance and claim absence only when a two-one-sided-test procedure puts the whole confidence interval for $2\beta_i$ inside it.
+Estimation proceeds by ordinary least squares on the individual runs rather than on the cell means. Because the design is balanced the coefficients are identical under either choice, while the error term now reflects run-to-run scatter. Balance would likewise equalise the standard errors if the error variance were constant, which it is not: the stopping rule fixes the experiment count at one level and frees it at the other, so within-cell variance differs systematically between the two halves of the design. Heteroskedasticity-consistent standard errors are used throughout, and the wasted trial ratio and the improvement rate are fitted on their natural scale, both being proportions. Multiplicity is handled by Benjamini--Hochberg adjustment, with the family taken as the treatment coefficients of one model on one metric.
 
 \subsection{Results}
 \label{sec:results}
@@ -201,104 +199,133 @@ We fit by ordinary least squares on the individual runs, not the cell means. Bal
 \begin{table}[t]
 \centering
 \small
-\caption{Main-effect estimates $2\hat\beta_i$ per metric, with heteroskedasticity-consistent standard errors and Benjamini--Hochberg adjusted $p$-values. \textbf{[PLACEHOLDER: populate from \texttt{regression\_table.csv}.]}}
+\caption{Main-effect estimates $2\hat\beta_i$ per metric from equation~\eqref{eq:regression}, with heteroskedasticity-consistent standard errors and Benjamini--Hochberg adjusted $p$-values. The $\hat\gamma$ column is the fitted dataset fixed effect (Wine relative to Breast Cancer).
+Stars mark adjusted $p<0.05$ ($^{*}$), $<0.01$ ($^{**}$) and $<0.001$ ($^{***}$).}
 \label{tab:main}
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{lrrrrrrr}
 \toprule
-Metric & $M$ & $B$ & $S$ & $O$ & $E$ & $R^2$ \\
+Metric & $M$ & $B$ & $S$ & $O$ & $E$ & $\hat\gamma$ & $R^2$ \\
 \midrule
-Number of experiments      & -- & -- & -- & -- & -- & -- \\
-Model families tried       & -- & -- & -- & -- & -- & -- \\
-Search width               & -- & -- & -- & -- & -- & -- \\
-Refinement rate            & -- & -- & -- & -- & -- & -- \\
-Normalised regret          & -- & -- & -- & -- & -- & -- \\
-Regret per executor call   & -- & -- & -- & -- & -- & -- \\
-Verbosity (instrumentation)& -- & -- & -- & -- & -- & -- \\
+Gain over default   & +0.001 & -0.001 & +0.001$^{**}$ & +0.000 & +0.000 & -0.001$^{***}$ & 0.029 \\
+Wasted trial ratio  & -0.023$^{***}$ & -0.034$^{***}$ & +0.044$^{***}$ & -0.075$^{***}$ & +0.005 & -0.003 & 0.159 \\
+Improvement rate    & +0.008 & -0.026$^{*}$ & +0.034$^{**}$ & +0.006 & +0.018 & -0.064$^{***}$ & 0.044 \\
+Cost to best        & +0.06 & -0.02 & +0.05 & -0.01 & -0.11 & -0.20$^{***}$ & 0.025 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure}[t]
 \centering
-\framebox[\linewidth]{\rule{0pt}{5cm}\parbox{0.85\linewidth}{\centering\small
-\textbf{[PLACEHOLDER FIGURE]}\\[4pt]
-Coefficient plot: $2\hat\beta_i$ with confidence intervals, one panel per metric,
-the two datasets overlaid. The equivalence bound of Section~\ref{sec:regression}
-is drawn as a shaded band, so that effects ruled out by the two-one-sided test
-can be told apart from effects that were simply not detected.}}
-\caption{Estimated component effects on every metric. \textbf{[PLACEHOLDER.]}}
+\begin{tikzpicture}[font=\scriptsize]
+\begin{groupplot}[
+  group style={group size=2 by 2, horizontal sep=1.85cm, vertical sep=1.5cm},
+  width=6.0cm, height=3.9cm,
+  y dir=reverse, ytick={1,2,3,4,5},
+  yticklabels={$M$,$B$,$S$,$O$,$E$},
+  ymin=0.45, ymax=5.55,
+  ymajorgrids, major grid style={gray!22, dotted},
+  axis line style={gray!55}, tick align=outside, tick pos=left,
+  every tick/.style={gray!55},
+  title style={font=\scriptsize\bfseries, yshift=-1pt},
+  scaled x ticks=false,
+]
+\nextgroupplot[title={Gain over default}, xmin=-0.00183, xmax=0.00183,
+  xtick={-0.001,0.000,0.001}, xticklabel style={/pgf/number format/fixed,
+    /pgf/number format/precision=3, /pgf/number format/fixed zerofill},]
+\addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
+\addplot[only marks, mark=*, mark size=1.6pt, black, thick,
+  error bars/.cd, x dir=both, x explicit, error bar style={black}]
+  coordinates {(0.001028,3) +- (0.000609,0)};
+\addplot[only marks, mark=o, mark size=1.6pt, black, thick,
+  error bars/.cd, x dir=both, x explicit, error bar style={black}]
+  coordinates {(0.000627,1) +- (0.000609,0) (-0.000617,2) +- (0.000609,0) (0.000050,4) +- (0.000609,0) (0.000151,5) +- (0.000609,0)};
+\nextgroupplot[title={Wasted trial ratio}, xmin=-0.09746, xmax=0.09746,
+  xtick={-0.050,0.000,0.050}, xticklabel style={/pgf/number format/fixed,
+    /pgf/number format/precision=3, /pgf/number format/fixed zerofill},]
+\addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
+\addplot[only marks, mark=*, mark size=1.6pt, black, thick,
+  error bars/.cd, x dir=both, x explicit, error bar style={black}]
+  coordinates {(-0.023177,1) +- (0.012178,0) (-0.033698,2) +- (0.012178,0) (0.043958,3) +- (0.012178,0) (-0.074844,4) +- (0.012178,0)};
+\addplot[only marks, mark=o, mark size=1.6pt, black, thick,
+  error bars/.cd, x dir=both, x explicit, error bar style={black}]
+  coordinates {(0.004896,5) +- (0.012178,0)};
+\nextgroupplot[title={Improvement rate}, xlabel={$2\hat\beta$}, xmin=-0.06099, xmax=0.06099,
+  xtick={-0.025,0.000,0.025}, xticklabel style={/pgf/number format/fixed,
+    /pgf/number format/precision=3, /pgf/number format/fixed zerofill},]
+\addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
+\addplot[only marks, mark=*, mark size=1.6pt, black, thick,
+  error bars/.cd, x dir=both, x explicit, error bar style={black}]
+  coordinates {(-0.025781,2) +- (0.020340,0) (0.034115,3) +- (0.020340,0)};
+\addplot[only marks, mark=o, mark size=1.6pt, black, thick,
+  error bars/.cd, x dir=both, x explicit, error bar style={black}]
+  coordinates {(0.008073,1) +- (0.020340,0) (0.005990,4) +- (0.020340,0) (0.018490,5) +- (0.020340,0)};
+\nextgroupplot[title={Cost to best}, xlabel={$2\hat\beta$}, xmin=-0.21731, xmax=0.21731,
+  xtick={-0.10,0.00,0.10}, xticklabel style={/pgf/number format/fixed,
+    /pgf/number format/precision=2, /pgf/number format/fixed zerofill},]
+\addplot[gray!70, dashed, forget plot] coordinates {(0,0.45) (0,5.55)};
+\addplot[only marks, mark=o, mark size=1.6pt, black, thick,
+  error bars/.cd, x dir=both, x explicit, error bar style={black}]
+  coordinates {(0.056250,1) +- (0.084652,0) (-0.018750,2) +- (0.084652,0) (0.053125,3) +- (0.084652,0) (-0.009375,4) +- (0.084652,0) (-0.109375,5) +- (0.084652,0)};
+\end{groupplot}
+\end{tikzpicture}
+\caption{Estimated component effects on every metric. Points are $2\hat\beta_i$ from
+equation~\eqref{eq:regression}, bars are $95\%$ intervals built from
+heteroskedasticity-consistent standard errors, and a filled point marks an effect that
+survives Benjamini--Hochberg adjustment at $0.05$. The dataset fixed effect is in the
+model, so these are within-task effects. The four panels carry independent horizontal
+scales, the metrics being in different units.}
 \label{fig:coefficients}
 \end{figure}
 
-Table~\ref{tab:main} gives the main-effect estimates and Figure~\ref{fig:coefficients} plots them with their intervals. \textbf{[PLACEHOLDER: for each process metric, say which component dominates and by how much, and confirm that the instrumentation metric comes out driven by reporting style as required.]}
+Table~\ref{tab:main} gives the main-effect estimates and Figure~\ref{fig:coefficients} plots them with their intervals. The components affect the four metrics unequally.
 
-Table~\ref{tab:interactions} gives the two-way interactions. \textbf{[PLACEHOLDER: say whether the components act independently, and name any pair whose interaction rivals a main effect in size.]}
+The wasted trial ratio is the most responsive metric. Four of the five components produce effects that survive adjustment, and the model accounts for $R^2=0.16$ of its variance. The reporting style produces the largest effect measured anywhere in the design, $2\hat\beta_O=-0.075$, corresponding to a reduction in the mean ratio from $0.106$ at level $0$ to $0.031$ at level $1$. Search breadth and the evaluation criterion act in the same direction, with effects of $-0.034$ and $-0.023$. The adaptive stopping rule acts in the opposite direction, $+0.044$, raising the mean ratio from $0.046$ to $0.090$. This is consistent with its mechanism: the adaptive level raises the mean number of executed experiments from $2.88$ to $4.57$, and a proportion of the additional proposals duplicate configurations already attempted.
+
+The two outcome metrics, by contrast, respond to the stopping rule alone. It is the only component whose effect on the gain over default survives adjustment ($+0.001$, adj.\ $p=0.005$), and it raises the improvement rate from $0.135$ to $0.170$. Search breadth is the only other component affecting the improvement rate, at $-0.026$. No component affects the cost to best at the adjusted $0.05$ level; the largest estimate is exploit-first at $-0.11$, with adj.\ $p=0.057$. The components that determine efficiency are therefore not the components that determine outcome.
+
+Furthermore, on two of the four metrics the dataset fixed effect exceeds every component effect. Wine reduces the improvement rate by $0.064$ and the cost to best by $0.20$ relative to Breast Cancer, both at $p<10^{-5}$, against largest component effects of $0.034$ and $0.11$ on the same metrics. This is the variation that equation~\eqref{eq:regression} removes from the residual.
+
+Table~\ref{tab:interactions} gives the two-way interactions. Three of the forty estimated across the four metrics survive adjustment. All three occur on the wasted trial ratio and all three involve the reporting style: $S\times O$ at $-0.031$, $B\times O$ at $+0.018$, and $O\times E$ at $-0.016$. Of these, only $S\times O$ is comparable in magnitude to a main effect. Its sign indicates that the verbose reporting style and the adaptive budget are partial substitutes: the reduction in wasted trials attributable to either component is smaller when the other is already at level $1$. For the remaining pairs the data provide no evidence of interaction, so the components may be treated as additive. This is the answer to RQ2, and the complete factorial is what permits the question to be tested rather than assumed.
 
 \begin{table}[t]
 \centering
 \small
-\caption{Two-way interaction estimates $2\hat\beta_{ij}$ from equation~\eqref{eq:interaction}, and compliance rates per component. \textbf{[PLACEHOLDER.]}}
+\caption{Two-way interaction estimates $2\hat\beta_{ij}$ from equation~\eqref{eq:interaction}, and compliance per component. The four interactions with the smallest adjusted $p$ are
+shown, with adjusted $p$ given directly; compliance is reported as level $0$ / level $1$.}
 \label{tab:interactions}
 \begin{tabular}{lrr@{\hskip 1.2cm}lr}
 \toprule
 Interaction & Estimate & adj.\ $p$ & Component & Compliance \\
 \midrule
-$M \times B$ & -- & -- & $M$ & -- \\
-$M \times S$ & -- & -- & $B$ & -- \\
-$B \times S$ & -- & -- & $S$ & -- \\
-$S \times E$ & -- & -- & $O$ & -- \\
-\ldots        & -- & -- & $E$ & -- \\
+$S \times O$ (wasted trial ratio) & -0.031 & 0.000 & $B$ & 0.66 / 0.82 \\
+$B \times O$ (wasted trial ratio) & +0.018 & 0.009 & $S$ & 0.89 / 0.20 \\
+$O \times E$ (wasted trial ratio) & -0.016 & 0.019 & $E$ & 0.88 / 0.69 \\
+$M \times B$ (wasted trial ratio) & -0.010 & 0.171 & $O$ & 205 / 386 chars \\
+ &  &  & $M$ & not observable \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-An instruction is not always obeyed. Table~\ref{tab:interactions} therefore also reports, per component, the share of runs whose behaviour actually matched the instruction given, so we can tell a component that had no effect from one the model ignored. \textbf{[PLACEHOLDER.]}
-
-\subsection{Validation}
-\label{sec:validation}
-
-A model fitted on the data used to build it has shown association and nothing more. Exhaustive enumeration leaves no unrun configuration to hold out, so we use three substitutes.
-
-\emph{Leave-one-cell-out prediction.} Refit the model thirty-two times, each time dropping all replicates of one configuration and predicting that cell's mean before looking at its data. Aggregating gives an out-of-sample $R^2$ per metric, which separates the metrics the design predicts from the ones it merely describes.
-
-\emph{Comparison of the per-dataset fits.} Compare the two coefficient vectors component by component. This is a comparison, and we do not call it a test. With two tasks, holding one out leaves a single fold, far too little to say how an effect varies across tasks. Disagreement is the useful outcome, since it pins an effect to a task. Agreement cannot establish the converse.
-
-\emph{Audit of the fractional design.} Pull an eight-run Plackett--Burman subset out of the thirty-two cells, fit a main-effects model to it exactly as the earlier study did, and compare its coefficients with the full design. The alias structure of a resolution-III design is known analytically, so the direction of the discrepancy is no discovery. What the audit measures is how big the absorbed interaction terms actually are, and therefore how much error the sparsity assumption costs in this problem class. That answers RQ3, and it is the one check here that helps anyone who cannot afford full enumeration.
-
-\begin{table}[t]
-\centering
-\small
-\caption{Validation summary: out-of-sample $R^2$ per metric, agreement of the per-dataset coefficient vectors, and the gap between the eight-run fractional estimates and the full design. \textbf{[PLACEHOLDER.]}}
-\label{tab:validation}
-\begin{tabular}{lrrr}
-\toprule
-Metric & LOCO $R^2$ & Cross-dataset agreement & Fractional-design error \\
-\midrule
-Number of experiments & -- & -- & -- \\
-Model families tried  & -- & -- & -- \\
-Search width          & -- & -- & -- \\
-Refinement rate       & -- & -- & -- \\
-Normalised regret     & -- & -- & -- \\
-\bottomrule
-\end{tabular}
-\end{table}
+An instruction is not invariably obeyed. Table~\ref{tab:interactions} therefore also reports the proportion of runs whose behaviour matched the instruction given, so that a component without effect can be distinguished from one the model disregarded. Three components constrain an observable action and admit a mechanical check: $B$ by the number of model families the run proposes, $S$ by the number of experiments it performs, $E$ by whether its second proposal refines the first. $O$ constrains wording rather than action, so it is assigned a manipulation check instead, namely the mean number of characters of hypothesis and interpretation text per run at each level. $M$ leaves no behavioural trace at all, because the executor computes the score whatever the instruction says. The manipulation check separates the two levels of the reporting style clearly: the mean quantity of model-written text per run is $205$ characters at level $0$ and $386$ at level $1$. Compliance with the remaining instructions is, however, only partial. The fixed budget is followed in $89\%$ of runs, whereas the adaptive rule is followed in only $20\%$. The stopping-rule effects reported above measure the effect of offering an adaptive budget, not the effect of a loop that terminates on diminishing returns. Search breadth is followed in $66\%$ of narrow runs and $82\%$ of broad runs, and exploit-first in $69\%$ of runs. All estimates in Table~\ref{tab:main} are consequently intention-to-treat estimates, attenuated towards zero in proportion to the non-compliance rate of the component concerned.
 
 \subsection{Discussion and further considerations}
 \label{sec:discussion}
 
-\textbf{[PLACEHOLDER: read the recovered effect structure. Say which components govern process and whether any governs outcome; tie a null outcome result to the equivalence bound instead of to a failed significance test; and quantify what the fractional design would have got wrong.]}
+The recovered effect structure is concentrated on process. Outcome is barely affected. Four of the five components move the wasted trial ratio, the largest being the reporting style at $-0.075$, which cuts the mean ratio from $0.106$ to $0.031$. The gain over default answers only to the stopping rule, and by $+0.001$ on the accuracy scale, a quantity smaller in absolute value than the $-0.0013$ contributed by the choice of dataset. Two components move the improvement rate, the stopping rule at $+0.034$ and search breadth at $-0.026$. On the cost to best nothing reaches the adjusted $0.05$ level. Among the two-way interactions only $S\times O$ ($-0.031$) is comparable in magnitude to a main effect, and its sign indicates substitution, not reinforcement.
 
-Three limitations bound what any of this shows. Everything is conditional on one agent model, so we have measured how instructions act on one policy, not a property of instructions at large. Each level is realised by a single generated paragraph, which leaves the effect of a component's level tangled with the effect of its particular wording; read the results as effects of specific instruction texts. And the tasks are tabular classification problems over a small discrete hyperparameter space. Whether the same effect structure appears in loops that search over code, or over open-ended hypotheses, is outside what this design can reach.
+Two conclusions follow. First, within the range of wordings tested, the instruction file determines the efficiency of the search but not the quality of the configuration returned. Requiring the model to state its reasoning reduces the share of malformed and duplicate proposals by approximately two thirds, whereas no component produced a comparable change in the accuracy of the recommended configuration. Second, the outcome effects are bounded by the difficulty of the task. Default hyperparameters already achieve $a_0=0.960$ on both datasets, $40.0\%$ of runs improve on that value and $20.9\%$ terminate below it, so the available headroom is small. The measured effects concern the efficiency with which a ceiling is approached, and say nothing about the height of that ceiling. Whether the same structure holds on tasks with greater headroom is not determined by this design.
+
+Three limitations bound what these results establish. First, every finding is conditional on a single agent model, so what has been measured is the action of instructions on one policy, not a property of instructions in general. Second, each level is realised by a single generated paragraph, which leaves the effect of a component's level confounded with the effect of its particular wording; the results should accordingly be read as effects of specific instruction texts. Third, the tasks are tabular classification problems over a small discrete hyperparameter space. Whether the same effect structure obtains in loops that search over code, or over open-ended hypotheses, lies beyond the reach of this design.
 
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-In an autoresearch loop, \texttt{program.md} does the job that controller code does in ordinary software, but you cannot read it the way you read code. So we treated it as a configuration vector. Five components of \texttt{program.md} were written at two levels each, all $2^5=32$ configurations were generated and run against a real executor on two datasets with twenty replicates apiece, and the resulting behaviour was reduced to process, outcome and instrumentation metrics and regressed on an orthogonal $\pm1$ coding of the components. Because we built the configurations instead of collecting them, the coefficients can be read causally. Because the factorial is complete, whether the components interact is something we can test rather than assume.
+In an autoresearch loop, \texttt{program.md} performs the function that controller code performs in conventional software, yet it cannot be read in the manner of code. It is treated here as a configuration vector. Five components of \texttt{program.md} were written at two levels each, all $2^5=32$ configurations were generated and executed against a real executor on two datasets with twenty replicates apiece, and the resulting behaviour was reduced to four outcome metrics and regressed on an orthogonal $\pm1$ coding of the components. Because the configurations were constructed rather than collected, the coefficients admit a causal reading. Because the factorial is complete, the independence of the components could be tested.
 
-\textbf{[PLACEHOLDER: one paragraph on which components drove which behaviour, which outcome effects were ruled out at the pre-specified threshold, and the measured error of the fractional alternative.]}
+The components determined the process, not the outcome. The reporting style produced the largest effect in the design, reducing the mean wasted trial ratio from $0.106$ to $0.031$, and search breadth and the evaluation criterion moved the same metric by $-0.034$ and $-0.023$. The stopping rule was the only component with an effect on either outcome metric, $+0.001$ on the gain over default and $+0.034$ on the improvement rate, and no component determined the cost to best. Three of forty two-way interactions survived adjustment, all on the wasted trial ratio and all involving the reporting style, so the components may be treated as additive. On two of the four metrics the dataset fixed effect exceeded every component effect, which is the reason equation~\eqref{eq:regression} controls for it. For tasks of this difficulty the instruction file determines how the loop conducts its search rather than what the search returns.
 
-The method is not tied to the five components we happened to vary. Any instruction file that can be cut into slots can be studied the same way, and full enumeration stays cheap while the number of slots is small. Two follow-ups are worth doing. Sampling several wordings per level would separate a component from its phrasing, which is the sharpest limitation above. Running the procedure on a loop that edits code, not hyperparameters, would test it where the instruction file carries far more of the system's behaviour.
+The method is not tied to the five components varied here. Any instruction file that can be partitioned into slots may be studied in the same manner, and full enumeration remains inexpensive while the number of slots is small. Two extensions are indicated. Sampling several wordings per level would separate a component from its phrasing, which is the most serious of the limitations noted above. Applying the procedure to a loop that edits code rather than hyperparameters would test it in a setting where the instruction file carries considerably more of the system's behaviour.
 
 \begin{thebibliography}{99}
 
@@ -314,37 +341,9 @@ agents. DataCamp tutorial, 23 March 2026. Secondary source; it reports the
 contents of the repository's \texttt{program.md} and results log.
 \url{https://www.datacamp.com/tutorial/guide-to-autoresearch}.
 
-\bibitem{TODO_Burns_K8s_2016}
-B. Burns, B. Grant, D. Oppenheimer, E. Brewer, and J. Wilkes.
-Borg, Omega, and Kubernetes: lessons learned from three container-management
-systems over a decade. ACM Queue, 14(1):70--93, 2016. Also Communications of the
-ACM, 59(5):50--57, 2016.
-
-\bibitem{TODO_Kephart_2003_Autonomic}
-J. O. Kephart and D. M. Chess. The vision of autonomic computing.
-IEEE Computer, 36(1):41--50, 2003.
-
-\bibitem{TODO_Huntley_Ralph_2025}
-G. Huntley. The Ralph technique: running a coding agent in an autonomous shell
-loop with a fresh context window per iteration, 2025. Practitioner write-up; not
-peer reviewed. \textbf{[TODO: insert the exact post URL and access date.]}
-
-\bibitem{TODO_SWE_Agent_2024}
-J. Yang, C. E. Jimenez, A. Wettig, K. Lieret, S. Yao, K. Narasimhan, and O. Press.
-SWE-agent: Agent-computer interfaces enable automated software engineering.
-Advances in Neural Information Processing Systems 37 (NeurIPS), 2024.
-arXiv:2405.15793.
-
 \bibitem{TODO_Boiko_2023_Coscientist}
 D. A. Boiko, R. MacKnight, B. Kline, and G. Gomes. Autonomous chemical research
 with large language models. Nature, 624(7992):570--578, 2023.
-
-\bibitem{TODO_Feder_2021_CausalNLP}
-A. Feder, K. A. Keith, E. Manzoor, R. Pryzant, D. Sridhar, Z. Wood-Doughty,
-J. Eisenstein, J. Grimmer, R. Reichart, M. E. Roberts, B. M. Stewart, V. Veitch,
-and D. Yang. Causal inference in natural language processing: Estimation,
-prediction, interpretation and beyond. Transactions of the Association for
-Computational Linguistics, 10:1138--1158, 2022. Preprint arXiv:2109.00725, 2021.
 
 \bibitem{TODO_Huang_2024_MLAgentBench}
 Q. Huang, J. Vora, P. Liang, and J. Leskovec. MLAgentBench: Evaluating language
@@ -364,31 +363,323 @@ M. Sclar, Y. Choi, Y. Tsvetkov, and A. Suhr. Quantifying language models'
 sensitivity to spurious features in prompt design, or: How I learned to start
 worrying about prompt formatting. ICLR, 2024. arXiv:2310.11324.
 
-\bibitem{TODO_Shinn_2023_Reflexion}
-N. Shinn, F. Cassano, E. Berman, A. Gopinath, K. Narasimhan, and S. Yao.
-Reflexion: Language agents with verbal reinforcement learning. NeurIPS, 2023.
-arXiv:2303.11366.
-
 \bibitem{TODO_Webson_2022_PromptMeaning}
 A. Webson and E. Pavlick. Do prompt-based models really understand the meaning
 of their prompts? NAACL-HLT, pages 2300--2344, 2022.
 
-\bibitem{TODO_Yao_2023_ReAct}
-S. Yao, J. Zhao, D. Yu, N. Du, I. Shafran, K. Narasimhan, and Y. Cao. ReAct:
-Synergizing reasoning and acting in language models. ICLR, 2023.
-arXiv:2210.03629.
-
-\bibitem{fawcetthoos}
-C. Fawcett and H. H. Hoos. Analysing differences between algorithm
-configurations through ablation. Journal of Heuristics, 22(4):431--458, 2016.
-
-\bibitem{hutter2014fanova}
-F. Hutter, H. Hoos, and K. Leyton-Brown. An efficient approach for assessing
-hyperparameter importance. ICML, 2014.
-
-\bibitem{plackettburman}
-R. L. Plackett and J. P. Burman. The design of optimum multifactorial
-experiments. Biometrika, 33(4):305--325, 1946.
-
 \end{thebibliography}
+
+
+
+\appendix
+
+\section{The files the loop runs on}
+\label{app:files}
+
+Section~\ref{sec:intro} describes the three-file contract of Karpathy's
+\texttt{autoresearch}: \texttt{prepare.py} fixes the data and the score,
+\texttt{train.py} holds the model and the training loop, and \texttt{program.md} holds
+the instructions. The study keeps that contract file for file. All three are reproduced
+below: the specification of \texttt{program.md} in Appendix~\ref{app:program},
+\texttt{prepare.py} in Appendix~\ref{app:prepare}, and \texttt{train.py} in
+Appendix~\ref{app:train}.
+
+One thing does differ, and it is the narrowing of Section~\ref{sec:loop} rather than a
+departure from the contract. In Karpathy's loop the agent edits \texttt{train.py}
+directly. Here the search space is a hyperparameter space, not arbitrary code, so that
+the instruction file stays the only free variable; the agent names a model family and
+hyperparameter values in a JSON proposal and \texttt{train.py} builds exactly that
+estimator. The agent therefore acts on \texttt{train.py} through a fixed interface
+instead of rewriting it. What is unchanged is the ownership that matters for
+measurement: \texttt{prepare.py} is reachable by nobody, so no level of any component
+can alter what a score means, and every number in a transcript is a measurement rather
+than a claim.
+
+\section{Specification of the instruction file}
+\label{app:program}
+
+A \texttt{program.md} is not written; it is rendered. This appendix gives the whole
+specification, from which any of the thirty-two files can be reconstructed exactly: the
+template, which is fixed, and the ten paragraphs that fill its five slots.
+
+Appendix~\ref{app:template} gives the template. Everything in it is byte-identical
+across all thirty-two configurations of a task. The five marked slots are the
+independent variables. The three remaining substitutions, \texttt{task\_title},
+\texttt{research\_question} and \texttt{dataset\_name}, are set by the task and not by
+the configuration, so they are constant across the thirty-two files of one dataset and
+differ only between datasets.
+
+Appendix~\ref{app:levels} gives the ten paragraphs, two per slot, verbatim. A
+configuration $c = (c_1,\ldots,c_5)$ selects one paragraph per slot, and substituting
+one paragraph for the other level of the same slot is the only difference between two
+files. These ten texts are the treatment: they were written once by a language model
+from fixed meta-prompts, then frozen and reused word for word, for the reason given in
+Section~\ref{sec:axes}. Table~\ref{tab:axes} summarises them; what follows is the text
+itself, since it is the wording rather than the summary that the loop responds to.
+
+\subsection{Template}
+\label{app:template}
+
+\begin{lstlisting}[style=src]
+# Research Task: {{ task_title }}
+
+You are an autonomous research agent. Your task is to investigate the following
+question through real, executed experiments (not simulated ones):
+
+> {{ research_question }}
+
+You have access to a fixed dataset ({{ dataset_name }}, already loaded and split
+into train/validation) and to a tool that fits either a RandomForestClassifier or
+a GradientBoostingClassifier with hyperparameters you choose. The tool always
+returns the same record: 5-fold cross-validated accuracy on the training split,
+its standard deviation across folds, and accuracy on the held-out validation
+split.
+
+## Evaluation
+
+(*@\textbf{$\langle$ slot $M$ --- metric $\rangle$}@*)
+{{ metric_text }}
+
+## Search strategy
+
+(*@\textbf{$\langle$ slot $B$ --- breadth $\rangle$}@*)
+{{ breadth_text }}
+
+(*@\textbf{$\langle$ slot $E$ --- emphasis $\rangle$}@*)
+{{ emphasis_text }}
+
+## Budget and stopping
+
+(*@\textbf{$\langle$ slot $S$ --- stopping $\rangle$}@*)
+{{ stopping_text }}
+
+## Reporting style
+
+(*@\textbf{$\langle$ slot $O$ --- output format $\rangle$}@*)
+{{ output_format_text }}
+
+## Required response format
+
+At every step, respond with a single JSON object and nothing else, matching one
+of these two shapes:
+
+Proposing an experiment:
+```json
+{"action": "propose", "hypothesis": "<why you think this configuration will help>",
+ "model": "random_forest" | "gradient_boosting",
+ "params": {"<hyperparameter>": <value>, ...}}
+```
+
+Interpreting the last result and deciding what happens next:
+```json
+{"action": "interpret", "interpretation": "<what the result tells you>",
+ "decision": "continue" | "stop",
+ "final_recommendation": "<only required when decision == stop: your final
+   recommended model and hyperparameters, and why>"}
+```
+\end{lstlisting}
+
+\subsection{The ten treatment paragraphs}
+\label{app:levels}
+
+\begin{lstlisting}[style=src]
+(*@\textbf{slot $M$ --- Evaluation criterion} \quad (substituted for \texttt{\{\{ metric\_text \}\}})@*)
+(*@\textit{level 0:}@*) Evaluate model quality in whatever way you judge appropriate.
+
+(*@\textit{level 1:}@*) Evaluate every model using 5-fold cross-validated accuracy on the training split, AND report the standard deviation across folds as a measure of stability. A configuration is only better than another if its mean accuracy is higher; use the standard deviation only to break ties or to flag instability.
+
+(*@\textbf{slot $B$ --- Search breadth} \quad (substituted for \texttt{\{\{ breadth\_text \}\}})@*)
+(*@\textit{level 0:}@*) Stay within a single model family per experiment. Pick either RandomForestClassifier or GradientBoostingClassifier for the whole session unless you have exhausted reasonable hyperparameters for it and explicitly decide to switch.
+
+(*@\textit{level 1:}@*) You are free to compare RandomForestClassifier and GradientBoostingClassifier side by side within the same session, and to vary multiple hyperparameters of each at once.
+
+(*@\textbf{slot $S$ --- Stopping rule} \quad (substituted for \texttt{\{\{ stopping\_text \}\}})@*)
+(*@\textit{level 0:}@*) You have a fixed budget of exactly 3 experiments in total. Run exactly 3, then stop and report your final recommendation, regardless of the outcome of experiment 3.
+
+(*@\textit{level 1:}@*) You have a budget of up to 8 experiments. After each experiment, decide whether to continue: stop as soon as an experiment fails to improve the evaluation metric (defined above) by more than 0.002 over the best result so far, or when you reach 8 experiments, whichever comes first.
+
+(*@\textbf{slot $O$ --- Reporting style} \quad (substituted for \texttt{\{\{ output\_format\_text \}\}})@*)
+(*@\textit{level 0:}@*) Keep every response short: state the action you are taking and the numbers involved, with minimal prose.
+
+(*@\textit{level 1:}@*) Explain your reasoning at every step in full sentences: what you hypothesize, why, what you expect to observe, and how you interpret the actual result relative to that expectation.
+
+(*@\textbf{slot $E$ --- Search emphasis} \quad (substituted for \texttt{\{\{ emphasis\_text \}\}})@*)
+(*@\textit{level 0:}@*) Prioritize breadth of search: try several meaningfully different configurations before you spend more than one experiment refining any single one of them.
+
+(*@\textit{level 1:}@*) Prioritize depth: as soon as one configuration looks promising, immediately refine it with nearby variations (e.g. slightly different hyperparameter values) before trying anything unrelated.
+\end{lstlisting}
+
+\section{\texttt{prepare.py}}
+\label{app:prepare}
+
+The data and the score. Nobody edits this file, and the agent never sees it, so no
+level of any component can change what an experiment is measured on or how it is
+scored. One stratified $70/30$ partition per task, fixed with the same seed for every
+run, and one scoring procedure returning the same record every time, whatever a
+configuration's evaluation paragraph emphasises.
+
+\begin{lstlisting}[style=src,language=Python]
+"""
+prepare.py -- the data and the score. Nobody edits this file.
+
+The first of the three files of the autoresearch contract (thesis, Introduction).
+It fixes what every experiment is measured on and how it is scored, so that a
+score is comparable across configurations, across replicates and across the whole
+study. Neither the agent nor the instruction file can reach it: the agent never
+sees this module, and no level of any component in program.md changes what it
+returns. That is what makes a number in a transcript a measurement rather than a
+claim.
+
+Two responsibilities, and no others:
+
+  load(dataset)              the fixed train/validation partition for one task
+  score(estimator, dataset)  the record every experiment is scored by
+
+Every task uses the identical split protocol: one stratified 70/30 partition
+fixed with the same seed across all runs, so the split is a constant of the study
+rather than a source of variation (thesis, Experimental setup). The score is the
+same record whatever a configuration's evaluation paragraph emphasises:
+cross-validated accuracy on the training split, its across-fold standard
+deviation, and accuracy on the held-out validation split.
+
+Adding a dataset here does not put it in the study; the suite is whatever
+study_config.DATASETS says.
+"""
+import sys
+from functools import lru_cache
+from pathlib import Path
+
+from sklearn import datasets as skds
+from sklearn.model_selection import cross_val_score, train_test_split
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "config"))
+from study_config import CV_FOLDS, SCORING, SPLIT_SEED, TEST_SIZE  # noqa: E402
+
+# name -> zero-argument loader returning (X, y)
+LOADERS = {
+    "breast_cancer": lambda: (lambda d: (d.data, d.target))(skds.load_breast_cancer()),
+    "wine":          lambda: (lambda d: (d.data, d.target))(skds.load_wine()),
+    "digits":        lambda: (lambda d: (d.data, d.target))(skds.load_digits()),
+    "iris":          lambda: (lambda d: (d.data, d.target))(skds.load_iris()),
+}
+
+
+@lru_cache(maxsize=None)
+def load(name):
+    """Return the fixed split for one dataset as (X_train, X_val, y_train, y_val)."""
+    if name not in LOADERS:
+        raise KeyError(f"unknown dataset {name!r}; known: {sorted(LOADERS)}")
+    X, y = LOADERS[name]()
+    return train_test_split(
+        X, y, test_size=TEST_SIZE, random_state=SPLIT_SEED, stratify=y
+    )
+
+
+def score(estimator, dataset):
+    """The one scoring procedure of the study. Returns the record, or raises."""
+    X_tr, X_va, y_tr, y_va = load(dataset)
+    cv = cross_val_score(estimator, X_tr, y_tr, cv=CV_FOLDS, scoring=SCORING)
+    estimator.fit(X_tr, y_tr)
+    val = estimator.score(X_va, y_va)
+    return {
+        "cv_accuracy_mean": round(float(cv.mean()), 6),
+        "cv_accuracy_std": round(float(cv.std()), 6),
+        "val_accuracy": round(float(val), 6),
+    }
+
+
+def describe(name):
+    import numpy as np
+    X_tr, X_va, y_tr, y_va = load(name)
+    return {
+        "dataset": name,
+        "n_train": int(X_tr.shape[0]),
+        "n_val": int(X_va.shape[0]),
+        "n_features": int(X_tr.shape[1]),
+        "n_classes": int(len(np.unique(y_tr))),
+    }
+\end{lstlisting}
+
+\section{\texttt{train.py}}
+\label{app:train}
+
+The model and the training loop. The whitelist here is the boundary of the search
+space: a proposal naming an unknown family, or a hyperparameter outside the whitelist
+for its family, is rejected before it reaches the scoring procedure, so a malformed
+proposal costs a turn but not an experiment.
+
+\begin{lstlisting}[style=src,language=Python]
+"""
+train.py -- the model and the training loop.
+
+The second file of the autoresearch contract (thesis, Introduction). In
+Karpathy's loop this is the file the agent edits, and it is the only one it may
+edit. The loop studied here narrows the search space from arbitrary code to a
+hyperparameter space, so that the instruction file stays the only free variable
+(thesis, The loop under study). The narrowing changes how the agent reaches this
+file, not which file it acts on: instead of rewriting the source, the agent names
+a model family and hyperparameter values in a JSON proposal, and this module
+builds and trains exactly that estimator. Everything the agent can vary about the
+model lives here; nothing it can vary about the measurement does, that being
+prepare.py.
+
+The whitelist is the boundary of the search space. A proposal naming an unknown
+family, or a hyperparameter outside the whitelist for its family, is rejected
+here and never reaches the scoring procedure, which is what keeps a malformed
+proposal from costing an experiment.
+
+    run_experiment(model, params, seed, dataset) -> record | {"error": ...}
+"""
+import sys
+import time
+from pathlib import Path
+
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+
+STUDY = Path(__file__).resolve().parent
+sys.path.insert(0, str(STUDY))
+sys.path.insert(0, str(STUDY / "config"))
+import prepare  # noqa: E402
+import study_config  # noqa: E402  (read live, so WORKERS can set EXECUTOR_N_JOBS)
+from study_config import ALLOWED_PARAMS  # noqa: E402
+
+
+def build(model, params, seed):
+    """The estimator named by a proposal. Raises on an unknown family."""
+    if model == "random_forest":
+        # n_jobs is set to 1 when the outer loop is parallelised, so that the
+        # forest's internal threads do not oversubscribe the cores.
+        return RandomForestClassifier(
+            random_state=seed, n_jobs=study_config.EXECUTOR_N_JOBS, **params)
+    if model == "gradient_boosting":
+        return GradientBoostingClassifier(random_state=seed, **params)
+    raise ValueError(f"unknown model {model!r}")
+
+
+def validate(model, params):
+    """Whitelist check. Returns an error string, or None if the proposal is legal."""
+    if model not in ALLOWED_PARAMS:
+        return f"unknown model '{model}', must be one of {sorted(ALLOWED_PARAMS)}"
+    bad = set(params) - ALLOWED_PARAMS[model]
+    if bad:
+        return f"unsupported params for {model}: {sorted(bad)}"
+    return None
+
+
+def run_experiment(model, params, seed, dataset):
+    """Train one estimator on one dataset and score it. Record, or {'error': ...}."""
+    err = validate(model, params)
+    if err:
+        return {"error": err}
+
+    t0 = time.time()
+    try:
+        record = prepare.score(build(model, params, seed), dataset)
+    except Exception as exc:                      # noqa: BLE001 - reported to the model
+        return {"error": f"experiment failed: {exc}"}
+
+    return {"model": model, "params": params, "dataset": dataset, **record,
+            "wall_time_s": round(time.time() - t0, 3)}
+\end{lstlisting}
+
 \end{document}

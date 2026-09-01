@@ -14,8 +14,8 @@ elaborated agenda. Each axis is a plausible lever on research *behavior*:
   E  emphasis      - explore breadth first, or exploit/refine the first promising
                      result immediately?
 
-Each axis has exactly two levels, coded 0/1, matching the +/- coding used in the
-Plackett-Burman design in design/doe.py.
+Each axis has exactly two levels, coded 0/1, matching the +/-1 coding of eq. (1)
+used over the complete 2^5 factorial in design/full_factorial.py.
 """
 
 AXES = {
