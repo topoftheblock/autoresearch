@@ -13,3 +13,11 @@ __pycache__/
 # study/requirements.txt, so this is reproducible rather than tracked:
 #   python3 -m venv study/.venv \&\& study/.venv/bin/pip install -r study/requirements.txt
 study/.venv/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
