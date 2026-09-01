@@ -19,9 +19,9 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "loop"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "config"))
-from experiment import run_experiment  # noqa: E402
+from train import run_experiment  # noqa: E402
 import study_config as C  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "reference_constants.json"

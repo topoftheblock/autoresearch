@@ -314,18 +314,21 @@ The method is not tied to the five components I happened to vary. Any instructio
 \
 Section~\\ref\{sec:intro\} describes the three-file contract of Karpathy's\
 \\texttt\{autoresearch\}: \\texttt\{prepare.py\} fixes the data and the score,\
-\\texttt\{train.py\} holds the model and is the only file the agent edits, and\
-\\texttt\{program.md\} holds the instructions. The loop studied here narrows the search\
-space from arbitrary code to a hyperparameter space (Section~\\ref\{sec:loop\}), and that\
-narrowing removes one of the three files: the agent proposes a model family and\
-hyperparameter values as JSON and never edits code, so there is no agent-owned\
-\\texttt\{train.py\}. What remains is \\texttt\{program.md\}, reproduced in\
-Appendix~\\ref\{app:program\}, and a harness that plays the part of \\texttt\{prepare.py\}\
-and of the training loop together. That harness is two modules, given in\
-Appendices~\\ref\{app:executor\} and~\\ref\{app:data\}: the executor fits and scores a\
-proposal, and the dataset registry fixes the partition. Neither is reachable by the\
-agent, which is what makes every number in a transcript a measurement rather than a\
-claim.\
+\\texttt\{train.py\} holds the model and the training loop, and \\texttt\{program.md\} holds\
+the instructions. The study keeps that contract file for file. All three are reproduced\
+below: \\texttt\{program.md\} in Appendix~\\ref\{app:program\}, \\texttt\{prepare.py\} in\
+Appendix~\\ref\{app:prepare\}, and \\texttt\{train.py\} in Appendix~\\ref\{app:train\}.\
+\
+One thing does differ, and it is the narrowing of Section~\\ref\{sec:loop\} rather than a\
+departure from the contract. In Karpathy's loop the agent edits \\texttt\{train.py\}\
+directly. Here the search space is a hyperparameter space, not arbitrary code, so that\
+the instruction file stays the only free variable; the agent names a model family and\
+hyperparameter values in a JSON proposal and \\texttt\{train.py\} builds exactly that\
+estimator. The agent therefore acts on \\texttt\{train.py\} through a fixed interface\
+instead of rewriting it. What is unchanged is the ownership that matters for\
+measurement: \\texttt\{prepare.py\} is reachable by nobody, so no level of any component\
+can alter what a score means, and every number in a transcript is a measurement rather\
+than a claim.\
 \
 \\section\{Sample instruction file\}\
 \\label\{app:program\}\
@@ -397,103 +400,51 @@ Interpreting the last result and deciding what happens next:\
 ```\
 \\end\{lstlisting\}\
 \
-\\section\{The executor\}\
-\\label\{app:executor\}\
+\\section\{\\texttt\{prepare.py\}\}\
+\\label\{app:prepare\}\
 \
-The one part of the loop that is not a language-model call. It validates a proposal\
-against the whitelist, fits the estimator and returns the same record every time,\
-whatever the configuration's evaluation paragraph asks for.\
-\
-\\begin\{lstlisting\}[style=src,language=Python]\
-"""\
-Experiment executor, dataset-parameterised (thesis, Experimental setup).\
-\
-This is the one part of the loop that is NOT a language-model call. The model\
-chooses what to run; this module runs it and returns real measurements. The same\
-record is returned regardless of what a configuration's evaluation paragraph\
-emphasises: cross-validated accuracy on the training split, its across-fold\
-standard deviation, and accuracy on the held-out validation split.\
-"""\
-import sys\
-import time\
-from pathlib import Path\
-\
-from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier\
-from sklearn.model_selection import cross_val_score\
-\
-sys.path.insert(0, str(Path(__file__).resolve().parent))\
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "config"))\
-from datasets import load  # noqa: E402\
-import study_config  # noqa: E402  (read live, so WORKERS can set EXECUTOR_N_JOBS)\
-from study_config import ALLOWED_PARAMS, CV_FOLDS, SCORING  # noqa: E402\
-\
-\
-def build(model, params, seed):\
-    if model == "random_forest":\
-        # n_jobs is set to 1 when the outer loop is parallelised, so that the\
-        # forest's internal threads do not oversubscribe the cores.\
-        return RandomForestClassifier(\
-            random_state=seed, n_jobs=study_config.EXECUTOR_N_JOBS, **params)\
-    if model == "gradient_boosting":\
-        return GradientBoostingClassifier(random_state=seed, **params)\
-    raise ValueError(f"unknown model \{model!r\}")\
-\
-\
-def run_experiment(model, params, seed, dataset):\
-    """Fit one estimator on one dataset. Returns a record or an \{'error': ...\}."""\
-    if model not in ALLOWED_PARAMS:\
-        return \{"error": f"unknown model '\{model\}', must be one of \{sorted(ALLOWED_PARAMS)\}"\}\
-    bad = set(params) - ALLOWED_PARAMS[model]\
-    if bad:\
-        return \{"error": f"unsupported params for \{model\}: \{sorted(bad)\}"\}\
-\
-    X_tr, X_va, y_tr, y_va = load(dataset)\
-    t0 = time.time()\
-    try:\
-        clf = build(model, params, seed)\
-        cv = cross_val_score(clf, X_tr, y_tr, cv=CV_FOLDS, scoring=SCORING)\
-        clf.fit(X_tr, y_tr)\
-        val = clf.score(X_va, y_va)\
-    except Exception as exc:                      # noqa: BLE001 - reported to the model\
-        return \{"error": f"experiment failed: \{exc\}"\}\
-\
-    return \{\
-        "model": model,\
-        "params": params,\
-        "dataset": dataset,\
-        "cv_accuracy_mean": round(float(cv.mean()), 6),\
-        "cv_accuracy_std": round(float(cv.std()), 6),\
-        "val_accuracy": round(float(val), 6),\
-        "wall_time_s": round(time.time() - t0, 3),\
-    \}\
-\\end\{lstlisting\}\
-\
-\\section\{The dataset registry\}\
-\\label\{app:data\}\
-\
-One stratified $70/30$ partition per task, fixed with the same seed for every run, so\
-the split is a constant of the study rather than a source of variation.\
+The data and the score. Nobody edits this file, and the agent never sees it, so no\
+level of any component can change what an experiment is measured on or how it is\
+scored. One stratified $70/30$ partition per task, fixed with the same seed for every\
+run, and one scoring procedure returning the same record every time, whatever a\
+configuration's evaluation paragraph emphasises.\
 \
 \\begin\{lstlisting\}[style=src,language=Python]\
 """\
-Dataset registry (thesis, Experimental setup).\
+prepare.py -- the data and the score. Nobody edits this file.\
+\
+The first of the three files of the autoresearch contract (thesis, Introduction).\
+It fixes what every experiment is measured on and how it is scored, so that a\
+score is comparable across configurations, across replicates and across the whole\
+study. Neither the agent nor the instruction file can reach it: the agent never\
+sees this module, and no level of any component in program.md changes what it\
+returns. That is what makes a number in a transcript a measurement rather than a\
+claim.\
+\
+Two responsibilities, and no others:\
+\
+  load(dataset)              the fixed train/validation partition for one task\
+  score(estimator, dataset)  the record every experiment is scored by\
 \
 Every task uses the identical split protocol: one stratified 70/30 partition\
-fixed with the same seed across all runs, so the split is a constant of the\
-study rather than a source of variation.\
+fixed with the same seed across all runs, so the split is a constant of the study\
+rather than a source of variation (thesis, Experimental setup). The score is the\
+same record whatever a configuration's evaluation paragraph emphasises:\
+cross-validated accuracy on the training split, its across-fold standard\
+deviation, and accuracy on the held-out validation split.\
 \
-Only loaders for datasets named in study_config.DATASETS are used. Adding a\
-dataset here does not put it in the study; the suite is whatever the config says.\
+Adding a dataset here does not put it in the study; the suite is whatever\
+study_config.DATASETS says.\
 """\
 import sys\
-from pathlib import Path\
 from functools import lru_cache\
+from pathlib import Path\
 \
 from sklearn import datasets as skds\
-from sklearn.model_selection import train_test_split\
+from sklearn.model_selection import cross_val_score, train_test_split\
 \
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "config"))\
-from study_config import TEST_SIZE, SPLIT_SEED  # noqa: E402\
+sys.path.insert(0, str(Path(__file__).resolve().parent / "config"))\
+from study_config import CV_FOLDS, SCORING, SPLIT_SEED, TEST_SIZE  # noqa: E402\
 \
 # name -> zero-argument loader returning (X, y)\
 LOADERS = \{\
@@ -506,7 +457,7 @@ LOADERS = \{\
 \
 @lru_cache(maxsize=None)\
 def load(name):\
-    """Return the fixed split for one dataset as a 4-tuple."""\
+    """Return the fixed split for one dataset as (X_train, X_val, y_train, y_val)."""\
     if name not in LOADERS:\
         raise KeyError(f"unknown dataset \{name!r\}; known: \{sorted(LOADERS)\}")\
     X, y = LOADERS[name]()\
@@ -515,9 +466,22 @@ def load(name):\
     )\
 \
 \
+def score(estimator, dataset):\
+    """The one scoring procedure of the study. Returns the record, or raises."""\
+    X_tr, X_va, y_tr, y_va = load(dataset)\
+    cv = cross_val_score(estimator, X_tr, y_tr, cv=CV_FOLDS, scoring=SCORING)\
+    estimator.fit(X_tr, y_tr)\
+    val = estimator.score(X_va, y_va)\
+    return \{\
+        "cv_accuracy_mean": round(float(cv.mean()), 6),\
+        "cv_accuracy_std": round(float(cv.std()), 6),\
+        "val_accuracy": round(float(val), 6),\
+    \}\
+\
+\
 def describe(name):\
-    X_tr, X_va, y_tr, y_va = load(name)\
     import numpy as np\
+    X_tr, X_va, y_tr, y_va = load(name)\
     return \{\
         "dataset": name,\
         "n_train": int(X_tr.shape[0]),\
@@ -525,4 +489,86 @@ def describe(name):\
         "n_features": int(X_tr.shape[1]),\
         "n_classes": int(len(np.unique(y_tr))),\
     \}\
+\\end\{lstlisting\}\
+\
+\\section\{\\texttt\{train.py\}\}\
+\\label\{app:train\}\
+\
+The model and the training loop. The whitelist here is the boundary of the search\
+space: a proposal naming an unknown family, or a hyperparameter outside the whitelist\
+for its family, is rejected before it reaches the scoring procedure, so a malformed\
+proposal costs a turn but not an experiment.\
+\
+\\begin\{lstlisting\}[style=src,language=Python]\
+"""\
+train.py -- the model and the training loop.\
+\
+The second file of the autoresearch contract (thesis, Introduction). In\
+Karpathy's loop this is the file the agent edits, and it is the only one it may\
+edit. The loop studied here narrows the search space from arbitrary code to a\
+hyperparameter space, so that the instruction file stays the only free variable\
+(thesis, The loop under study). The narrowing changes how the agent reaches this\
+file, not which file it acts on: instead of rewriting the source, the agent names\
+a model family and hyperparameter values in a JSON proposal, and this module\
+builds and trains exactly that estimator. Everything the agent can vary about the\
+model lives here; nothing it can vary about the measurement does, that being\
+prepare.py.\
+\
+The whitelist is the boundary of the search space. A proposal naming an unknown\
+family, or a hyperparameter outside the whitelist for its family, is rejected\
+here and never reaches the scoring procedure, which is what keeps a malformed\
+proposal from costing an experiment.\
+\
+    run_experiment(model, params, seed, dataset) -> record | \{"error": ...\}\
+"""\
+import sys\
+import time\
+from pathlib import Path\
+\
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier\
+\
+STUDY = Path(__file__).resolve().parent\
+sys.path.insert(0, str(STUDY))\
+sys.path.insert(0, str(STUDY / "config"))\
+import prepare  # noqa: E402\
+import study_config  # noqa: E402  (read live, so WORKERS can set EXECUTOR_N_JOBS)\
+from study_config import ALLOWED_PARAMS  # noqa: E402\
+\
+\
+def build(model, params, seed):\
+    """The estimator named by a proposal. Raises on an unknown family."""\
+    if model == "random_forest":\
+        # n_jobs is set to 1 when the outer loop is parallelised, so that the\
+        # forest's internal threads do not oversubscribe the cores.\
+        return RandomForestClassifier(\
+            random_state=seed, n_jobs=study_config.EXECUTOR_N_JOBS, **params)\
+    if model == "gradient_boosting":\
+        return GradientBoostingClassifier(random_state=seed, **params)\
+    raise ValueError(f"unknown model \{model!r\}")\
+\
+\
+def validate(model, params):\
+    """Whitelist check. Returns an error string, or None if the proposal is legal."""\
+    if model not in ALLOWED_PARAMS:\
+        return f"unknown model '\{model\}', must be one of \{sorted(ALLOWED_PARAMS)\}"\
+    bad = set(params) - ALLOWED_PARAMS[model]\
+    if bad:\
+        return f"unsupported params for \{model\}: \{sorted(bad)\}"\
+    return None\
+\
+\
+def run_experiment(model, params, seed, dataset):\
+    """Train one estimator on one dataset and score it. Record, or \{'error': ...\}."""\
+    err = validate(model, params)\
+    if err:\
+        return \{"error": err\}\
+\
+    t0 = time.time()\
+    try:\
+        record = prepare.score(build(model, params, seed), dataset)\
+    except Exception as exc:                      # noqa: BLE001 - reported to the model\
+        return \{"error": f"experiment failed: \{exc\}"\}\
+\
+    return \{"model": model, "params": params, "dataset": dataset, **record,\
+            "wall_time_s": round(time.time() - t0, 3)\}\
 \\end\{lstlisting\}\

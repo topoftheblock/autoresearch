@@ -26,7 +26,7 @@ import time
 from pathlib import Path
 
 STUDY = Path(__file__).resolve().parent
-for sub in ("config", "design", "loop", "encoding", "analysis"):
+for sub in (".", "config", "design", "loop", "encoding", "analysis"):
     sys.path.insert(0, str(STUDY / sub))
 
 import study_config as C           # noqa: E402
@@ -157,8 +157,8 @@ def _synthetic_transcript(cfg, ds, seed, execute):
 def cmd_dry_run():
     """Prove the pipeline runs end to end without touching the API."""
     _provisional_for_dry_run()
-    import datasets as D
-    from experiment import run_experiment
+    import prepare as D
+    from train import run_experiment
 
     dsets = C.DATASETS
     for ds in dsets:
@@ -270,7 +270,7 @@ def cmd_run(workers=1):
     refs = reference.load_or_compute(dsets)
     report_baseline(refs)
 
-    import datasets as D
+    import prepare as D
     for d in dsets:                      # pre-warm the split cache before forking out
         D.load(d)
 

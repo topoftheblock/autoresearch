@@ -29,8 +29,9 @@ from pathlib import Path
 
 STUDY = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(STUDY / "loop"))
+sys.path.insert(0, str(STUDY))
 sys.path.insert(0, str(STUDY / "config"))
-from experiment import run_experiment  # noqa: E402
+from train import run_experiment  # noqa: E402
 from render_program import render_program  # noqa: E402
 import study_config as C  # noqa: E402
 
