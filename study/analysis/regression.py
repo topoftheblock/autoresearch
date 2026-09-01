@@ -1,5 +1,5 @@
 """
-Estimation and inference (thesis sec:regression).
+Estimation and inference (thesis, Regression model and inference).
 
 Fits, on the individual runs rather than the cell means, the two models the
 thesis specifies. With X_i the +/-1 coding of eq. (1) and D_j an indicator for
@@ -50,7 +50,7 @@ import study_config as C  # noqa: E402
 AXES = C.AXIS_ORDER
 XCOLS = [f"X_{a}" for a in AXES]
 METRICS = ["gain_over_default", "wasted_trial_ratio", "improvement_rate", "cost_to_best"]
-WINDOWS = {"window": "", "full": "_full"}      # thesis sec:metrics
+WINDOWS = {"window": "", "full": "_full"}      # thesis, Performance metrics
 
 
 # ------------------------------------------------------------- design matrix --
@@ -129,7 +129,7 @@ def fit_all(df):
     """Every metric x window x {main effects, two-way interactions}."""
     main, inter = [], []
     targets = [(m, w, m + suf) for m in METRICS for w, suf in WINDOWS.items()]
-    # the robustness scale of thesis sec:metrics, defined only where a0 < 1
+    # the robustness scale of thesis, Performance metrics, defined only where a0 < 1
     rob = f"gain_over_default_{C.GAIN_SCALE_ROBUSTNESS}"
     targets += [(rob, w, rob + suf) for w, suf in WINDOWS.items()]
 
@@ -151,7 +151,7 @@ def fit_all(df):
 
 # --------------------------------------------------------------- compliance --
 def compliance(df):
-    """thesis sec:results: share of runs whose behaviour matched the instruction.
+    """thesis, Results: share of runs whose behaviour matched the instruction.
 
     B, S and E constrain an observable action and get a rate. O constrains
     wording, so it gets the prose-length manipulation check instead. M leaves no

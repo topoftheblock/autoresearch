@@ -13,6 +13,11 @@
 \usepackage{pgfplots}
 \usepgfplotslibrary{groupplots}
 \pgfplotsset{compat=1.18}
+\usepackage{listings}
+\lstdefinestyle{src}{basicstyle=\ttfamily\scriptsize\linespread{0.90}\selectfont, breaklines=true,
+  breakindent=0pt, columns=fullflexible, keepspaces=true, frame=none,
+  aboveskip=4pt, belowskip=4pt, xleftmargin=0pt, showstringspaces=false,
+  escapeinside={(*@}{@*)}}
 \emergencystretch=3em
 \title{Autoresearch Loops:\\Causal Study of the Instruction File}
 \author{Christian Block\\\small Research project with Prof.\ Ramesh}
@@ -363,5 +368,227 @@ A. Webson and E. Pavlick. Do prompt-based models really understand the meaning
 of their prompts? NAACL-HLT, pages 2300--2344, 2022.
 
 \end{thebibliography}
+
+
+
+\appendix
+
+\section{The files the loop runs on}
+\label{app:files}
+
+Section~\ref{sec:intro} describes the three-file contract of Karpathy's
+\texttt{autoresearch}: \texttt{prepare.py} fixes the data and the score,
+\texttt{train.py} holds the model and is the only file the agent edits, and
+\texttt{program.md} holds the instructions. The loop studied here narrows the search
+space from arbitrary code to a hyperparameter space (Section~\ref{sec:loop}), and that
+narrowing removes one of the three files: the agent proposes a model family and
+hyperparameter values as JSON and never edits code, so there is no agent-owned
+\texttt{train.py}. What remains is \texttt{program.md}, reproduced in
+Appendix~\ref{app:program}, and a harness that plays the part of \texttt{prepare.py}
+and of the training loop together. That harness is two modules, given in
+Appendices~\ref{app:executor} and~\ref{app:data}: the executor fits and scores a
+proposal, and the dataset registry fixes the partition. Neither is reachable by the
+agent, which is what makes every number in a transcript a measurement rather than a
+claim.
+
+\section{Sample instruction file}
+\label{app:program}
+
+The file below is the complete \texttt{program.md} for configuration
+$c = (M,B,S,O,E) = (1,0,1,0,1)$ on the first dataset. Everything outside the five
+marked blocks is byte-identical across all thirty-two files; the marked blocks are the
+independent variables, and replacing one of them with its other level is the only
+difference between two configurations. The bracketed labels are annotations added here
+and are not part of the file. Table~\ref{tab:axes} summarises the alternative level of
+each slot.
+
+\begin{lstlisting}[style=src]
+# Research Task: Tree ensembles on the breast cancer dataset
+
+You are an autonomous research agent. Your task is to investigate the following
+question through real, executed experiments (not simulated ones):
+
+> How does the choice of hyperparameters affect the generalization accuracy of tree-ensemble classifiers (Random Forest and Gradient Boosting) on the breast cancer diagnostic dataset? Find a well-performing configuration.
+
+You have access to a fixed dataset (sklearn.datasets.load_breast_cancer, 70/30 stratified train/validation split, already loaded and split
+into train/validation) and to a tool that fits either a RandomForestClassifier or
+a GradientBoostingClassifier with hyperparameters you choose. The tool always
+returns the same record: 5-fold cross-validated accuracy on the training split,
+its standard deviation across folds, and accuracy on the held-out validation
+split.
+
+## Evaluation
+
+(*@\textbf{$\langle$ slot $M$ --- Evaluation criterion, level 1 $\rangle$}@*)
+Evaluate every model using 5-fold cross-validated accuracy on the training split, AND report the standard deviation across folds as a measure of stability. A configuration is only better than another if its mean accuracy is higher; use the standard deviation only to break ties or to flag instability.
+
+## Search strategy
+
+(*@\textbf{$\langle$ slot $B$ --- Search breadth, level 0 $\rangle$}@*)
+Stay within a single model family per experiment. Pick either RandomForestClassifier or GradientBoostingClassifier for the whole session unless you have exhausted reasonable hyperparameters for it and explicitly decide to switch.
+
+(*@\textbf{$\langle$ slot $E$ --- Search emphasis, level 1 $\rangle$}@*)
+Prioritize depth: as soon as one configuration looks promising, immediately refine it with nearby variations (e.g. slightly different hyperparameter values) before trying anything unrelated.
+
+## Budget and stopping
+
+(*@\textbf{$\langle$ slot $S$ --- Stopping rule, level 1 $\rangle$}@*)
+You have a budget of up to 8 experiments. After each experiment, decide whether to continue: stop as soon as an experiment fails to improve the evaluation metric (defined above) by more than 0.002 over the best result so far, or when you reach 8 experiments, whichever comes first.
+
+## Reporting style
+
+(*@\textbf{$\langle$ slot $O$ --- Reporting style, level 0 $\rangle$}@*)
+Keep every response short: state the action you are taking and the numbers involved, with minimal prose.
+
+## Required response format
+
+At every step, respond with a single JSON object and nothing else, matching one
+of these two shapes:
+
+Proposing an experiment:
+```json
+{"action": "propose", "hypothesis": "<why you think this configuration will help>",
+ "model": "random_forest" | "gradient_boosting",
+ "params": {"<hyperparameter>": <value>, ...}}
+```
+
+Interpreting the last result and deciding what happens next:
+```json
+{"action": "interpret", "interpretation": "<what the result tells you>",
+ "decision": "continue" | "stop",
+ "final_recommendation": "<only required when decision == stop: your final
+   recommended model and hyperparameters, and why>"}
+```
+\end{lstlisting}
+
+\section{The executor}
+\label{app:executor}
+
+The one part of the loop that is not a language-model call. It validates a proposal
+against the whitelist, fits the estimator and returns the same record every time,
+whatever the configuration's evaluation paragraph asks for.
+
+\begin{lstlisting}[style=src,language=Python]
+"""
+Experiment executor, dataset-parameterised (thesis, Experimental setup).
+
+This is the one part of the loop that is NOT a language-model call. The model
+chooses what to run; this module runs it and returns real measurements. The same
+record is returned regardless of what a configuration's evaluation paragraph
+emphasises: cross-validated accuracy on the training split, its across-fold
+standard deviation, and accuracy on the held-out validation split.
+"""
+import sys
+import time
+from pathlib import Path
+
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.model_selection import cross_val_score
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "config"))
+from datasets import load  # noqa: E402
+import study_config  # noqa: E402  (read live, so WORKERS can set EXECUTOR_N_JOBS)
+from study_config import ALLOWED_PARAMS, CV_FOLDS, SCORING  # noqa: E402
+
+
+def build(model, params, seed):
+    if model == "random_forest":
+        # n_jobs is set to 1 when the outer loop is parallelised, so that the
+        # forest's internal threads do not oversubscribe the cores.
+        return RandomForestClassifier(
+            random_state=seed, n_jobs=study_config.EXECUTOR_N_JOBS, **params)
+    if model == "gradient_boosting":
+        return GradientBoostingClassifier(random_state=seed, **params)
+    raise ValueError(f"unknown model {model!r}")
+
+
+def run_experiment(model, params, seed, dataset):
+    """Fit one estimator on one dataset. Returns a record or an {'error': ...}."""
+    if model not in ALLOWED_PARAMS:
+        return {"error": f"unknown model '{model}', must be one of {sorted(ALLOWED_PARAMS)}"}
+    bad = set(params) - ALLOWED_PARAMS[model]
+    if bad:
+        return {"error": f"unsupported params for {model}: {sorted(bad)}"}
+
+    X_tr, X_va, y_tr, y_va = load(dataset)
+    t0 = time.time()
+    try:
+        clf = build(model, params, seed)
+        cv = cross_val_score(clf, X_tr, y_tr, cv=CV_FOLDS, scoring=SCORING)
+        clf.fit(X_tr, y_tr)
+        val = clf.score(X_va, y_va)
+    except Exception as exc:                      # noqa: BLE001 - reported to the model
+        return {"error": f"experiment failed: {exc}"}
+
+    return {
+        "model": model,
+        "params": params,
+        "dataset": dataset,
+        "cv_accuracy_mean": round(float(cv.mean()), 6),
+        "cv_accuracy_std": round(float(cv.std()), 6),
+        "val_accuracy": round(float(val), 6),
+        "wall_time_s": round(time.time() - t0, 3),
+    }
+\end{lstlisting}
+
+\section{The dataset registry}
+\label{app:data}
+
+One stratified $70/30$ partition per task, fixed with the same seed for every run, so
+the split is a constant of the study rather than a source of variation.
+
+\begin{lstlisting}[style=src,language=Python]
+"""
+Dataset registry (thesis, Experimental setup).
+
+Every task uses the identical split protocol: one stratified 70/30 partition
+fixed with the same seed across all runs, so the split is a constant of the
+study rather than a source of variation.
+
+Only loaders for datasets named in study_config.DATASETS are used. Adding a
+dataset here does not put it in the study; the suite is whatever the config says.
+"""
+import sys
+from pathlib import Path
+from functools import lru_cache
+
+from sklearn import datasets as skds
+from sklearn.model_selection import train_test_split
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "config"))
+from study_config import TEST_SIZE, SPLIT_SEED  # noqa: E402
+
+# name -> zero-argument loader returning (X, y)
+LOADERS = {
+    "breast_cancer": lambda: (lambda d: (d.data, d.target))(skds.load_breast_cancer()),
+    "wine":          lambda: (lambda d: (d.data, d.target))(skds.load_wine()),
+    "digits":        lambda: (lambda d: (d.data, d.target))(skds.load_digits()),
+    "iris":          lambda: (lambda d: (d.data, d.target))(skds.load_iris()),
+}
+
+
+@lru_cache(maxsize=None)
+def load(name):
+    """Return the fixed split for one dataset as a 4-tuple."""
+    if name not in LOADERS:
+        raise KeyError(f"unknown dataset {name!r}; known: {sorted(LOADERS)}")
+    X, y = LOADERS[name]()
+    return train_test_split(
+        X, y, test_size=TEST_SIZE, random_state=SPLIT_SEED, stratify=y
+    )
+
+
+def describe(name):
+    X_tr, X_va, y_tr, y_va = load(name)
+    import numpy as np
+    return {
+        "dataset": name,
+        "n_train": int(X_tr.shape[0]),
+        "n_val": int(X_va.shape[0]),
+        "n_features": int(X_tr.shape[1]),
+        "n_classes": int(len(np.unique(y_tr))),
+    }
+\end{lstlisting}
 
 \end{document}

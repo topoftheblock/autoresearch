@@ -1,5 +1,5 @@
 """
-Dependent variables (thesis sec:metrics).
+Dependent variables (thesis, Performance metrics).
 
 Four metrics, computed mechanically from the structured transcript. No evaluation
 framework, scoring library or judge model is involved: each is a difference in
@@ -10,7 +10,7 @@ accuracy, a share of the proposals, or a count of executor calls.
   improvement_rate    share of executed trials beating the best score so far
   cost_to_best        executor calls up to and including the run's best score
 
-Measurement window (thesis sec:metrics): the stopping rule sets how many
+Measurement window (thesis, Performance metrics): the stopping rule sets how many
 experiments a run performs and every metric aggregates over them, so each is
 computed over the first WINDOW experiments, the number the fixed-budget level
 performs and hence the number every run has. The complete-run value carries the
@@ -22,7 +22,7 @@ Two further things this module writes into the row, both demanded by the thesis:
     in eq. (2); without it on every single row the dataset fixed effect cannot be
     fitted and the baseline difficulty of a task leaks into the beta_i.
   * compliance, so that "this component had no effect" is distinguishable from
-    "the model ignored this component" (thesis sec:results). Only B, S and E
+    "the model ignored this component" (thesis, Results). Only B, S and E
     constrain an observable action; O constrains wording, so it gets the prose
     length as a manipulation check; M leaves no behavioural trace, because the
     executor computes the score whatever the instruction says.
@@ -97,14 +97,14 @@ def _block(tr, ref, window, suffix):
     out[f"gain_basis{suffix}"] = basis
     out[f"best_score{suffix}"] = best
 
-    # Robustness scale (thesis sec:metrics): the same quantity on the other
+    # Robustness scale (thesis, Performance metrics): the same quantity on the other
     # accuracy scale, so an effect of M can be required to agree on both.
     rob, _ = _gain(tr, ref, ex, C.GAIN_SCALE_ROBUSTNESS)
     out[f"gain_over_default_{C.GAIN_SCALE_ROBUSTNESS}{suffix}"] = rob
 
     # ---- improvement rate --------------------------------------------------
     # "The share of executed trials whose score is strictly higher than the best
-    # score seen earlier in the same run" (thesis sec:metrics). The first trial
+    # score seen earlier in the same run" (thesis, Performance metrics). The first trial
     # has nothing earlier to beat, so it can never count as an improvement; the
     # denominator is still every executed trial, so the ceiling is (n-1)/n.
     # a0(d) deliberately plays no part here: program.md states no baseline, so a
@@ -156,7 +156,7 @@ def _wasted(tr, window):
 
 
 # --------------------------------------------------------------- compliance --
-# thesis sec:results. One mechanical check per component whose instruction
+# thesis, Results. One mechanical check per component whose instruction
 # constrains an action; the other two are handled as documented in the module
 # docstring. Every check reads the complete run, not the measurement window,
 # because the instruction governs the whole session.

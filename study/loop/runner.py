@@ -1,12 +1,12 @@
 """
-One run of the autoresearch loop (thesis sec:loop, sec:setup).
+One run of the autoresearch loop (thesis, The loop under study; Experimental setup).
 
 A run is one execution under one configuration, on one dataset, with one seed.
 The instruction file is supplied once as the system message and is not modified
 thereafter; the model alternates propose / interpret, and the harness performs
 the execution step itself.
 
-Controls enforced here, all from thesis sec:setup:
+Controls enforced here, all from thesis, Experimental setup:
   * the agent model is a pinned dated snapshot, never a moving alias;
   * the decoding temperature is one fixed value for every run, and is strictly
     above zero, because the run-to-run variance is the error term against which
@@ -38,7 +38,7 @@ class ModelUnavailable(RuntimeError):
     """The model interface could not be reached. A property of the API, not the run.
 
     Kept distinct from EmptyRun because the two demand opposite responses: a run
-    that produced nothing is replaced with a fresh seed (thesis sec:setup), while
+    that produced nothing is replaced with a fresh seed (thesis, Experimental setup), while
     an unreachable API must never consume a replacement seed -- doing so silently
     substitutes seeds for reasons that have nothing to do with the experiment and
     breaks the guarantee that every cell draws from the same seed list.

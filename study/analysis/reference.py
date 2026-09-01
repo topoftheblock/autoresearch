@@ -1,5 +1,5 @@
 """
-Per-dataset baseline for the gain over default (thesis sec:setup).
+Per-dataset baseline for the gain over default (thesis, Experimental setup).
 
     gain(tau, d) = score(final configuration of tau) - a0(d)
 

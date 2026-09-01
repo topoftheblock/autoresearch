@@ -1,5 +1,5 @@
 """
-Experiment executor, dataset-parameterised (thesis sec:setup).
+Experiment executor, dataset-parameterised (thesis, Experimental setup).
 
 This is the one part of the loop that is NOT a language-model call. The model
 chooses what to run; this module runs it and returns real measurements. The same

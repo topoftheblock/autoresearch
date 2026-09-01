@@ -1,5 +1,5 @@
 """
-Dataset registry (thesis sec:setup).
+Dataset registry (thesis, Experimental setup).
 
 Every task uses the identical split protocol: one stratified 70/30 partition
 fixed with the same seed across all runs, so the split is a constant of the

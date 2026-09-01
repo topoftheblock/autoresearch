@@ -5,11 +5,11 @@ Executes the complete 2^5 factorial over the components of program.md, crossed
 with the task suite and replicated R times, and writes one regression-ready row
 per run.
 
-    N = 2^5 * D * R                                  (thesis sec:setup)
+    N = 2^5 * D * R                                  (thesis, Experimental setup)
 
 Balance is preserved by construction, not assumed: a run that fails to produce a
 valid experiment is repeated with a fresh sampling seed until every cell holds
-exactly R completed runs (thesis sec:setup).
+exactly R completed runs (thesis, Experimental setup).
 
 Usage
     python3 run_experiment.py --check          validate config, print the plan
@@ -41,7 +41,7 @@ def plan():
 
 
 def report_baseline(refs):
-    """a0(d) per dataset, and which scales admit a gain (thesis sec:setup)."""
+    """a0(d) per dataset, and which scales admit a gain (thesis, Experimental setup)."""
     print("\nBaseline a0(d):")
     for d, r in refs.items():
         exc = C.GAIN_SCALES_EXCLUDED.get(d, [])
@@ -59,7 +59,7 @@ def cmd_check():
     print("Configuration audit")
     print("-------------------")
     print(f"  agent model      : {C.AGENT_MODEL}")
-    print(f"  temperature      : {C.TEMPERATURE}   (fixed for every run, thesis sec:setup)")
+    print(f"  temperature      : {C.TEMPERATURE}   (fixed for every run, thesis, Experimental setup)")
     print(f"  API sampling seed: {'sent per run' if C.SEND_API_SEED else 'NOT SENT'}")
     print(f"  split            : {int((1-C.TEST_SIZE)*100)}/{int(C.TEST_SIZE*100)} "
           f"stratified, seed {C.SPLIT_SEED}")
@@ -198,7 +198,7 @@ def _one_cell(cfg, ds, seed, results_dir):
     Transcripts are written under results_full/<config>/<dataset>/seed<n>/, so an
     interrupted study resumes instead of re-billing completed runs.
 
-    thesis sec:setup: "When a run fails to produce a valid experiment it is
+    thesis, Experimental setup: "When a run fails to produce a valid experiment it is
     repeated with a fresh seed until the cell holds exactly R completed runs, so
     balance survives by construction." run_one raises when a run produced no
     valid experiment; the replacement seed is drawn from beyond the seed list so
@@ -234,7 +234,7 @@ def _one_cell(cfg, ds, seed, results_dir):
 def cmd_encode():
     """Rebuild the regression table from the transcripts already on disk.
 
-    Metrics come straight off the structured transcript (thesis sec:metrics), so
+    Metrics come straight off the structured transcript (thesis, Performance metrics), so
     a change to a metric definition never requires re-running the loop or
     touching the API: re-encode and refit instead.
     """
@@ -337,7 +337,7 @@ if __name__ == "__main__":
     ap.add_argument("--analyze", action="store_true",
                     help="fit eq. (2) and (3) with the dataset fixed effect")
     ap.add_argument("--workers", type=int, default=1,
-                    help="parallel runs; runs are independent (thesis sec:setup)")
+                    help="parallel runs; runs are independent (thesis, Experimental setup)")
     a = ap.parse_args()
     if a.check:
         sys.exit(cmd_check())

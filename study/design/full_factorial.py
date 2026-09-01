@@ -1,5 +1,5 @@
 """
-Complete 2^5 factorial over the five components of program.md (thesis sec:axes).
+Complete 2^5 factorial over the five components of program.md (thesis, The instruction file as a configuration).
 
 All 32 cells are executed. A fractional design would need the very runs that
 separate a main effect from a two-way interaction, so it would have to assume
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     out = Path(__file__).resolve().parent / "configs_full.json"
     out.write_text(json.dumps(cfgs, indent=2))
     print(f"wrote {len(cfgs)} configurations to {out}")
-    # balance check: each axis at level 1 in exactly half the cells (thesis sec:intervention)
+    # balance check: each axis at level 1 in exactly half the cells (thesis, Configuration change as intervention)
     for a in AXIS_ORDER:
         ones = sum(c[a] for c in cfgs)
         print(f"  {a}: level1 in {ones}/{len(cfgs)} cells")

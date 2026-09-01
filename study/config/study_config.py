@@ -18,33 +18,33 @@ REQUIRED = _Required()
 
 
 # ---------------------------------------------------------------- treatment --
-# thesis sec:axes: five binary components, complete 2^5 factorial, all 32 executed.
+# thesis, The instruction file as a configuration: five binary components, complete 2^5 factorial, all 32 executed.
 AXIS_ORDER = ["M", "B", "S", "O", "E"]
 N_CONFIGS = 2 ** len(AXIS_ORDER)
 
 
 # ----------------------------------------------------------------- controls --
-# thesis sec:setup: agent model pinned to a dated snapshot, not a moving alias.
-AGENT_MODEL = "gpt-4o-mini-2024-07-18"   # pinned dated snapshot (thesis sec:setup)
+# thesis, Experimental setup: agent model pinned to a dated snapshot, not a moving alias.
+AGENT_MODEL = "gpt-4o-mini-2024-07-18"   # pinned dated snapshot (thesis, Experimental setup)
 
-# thesis sec:setup: temperature held at ONE value in every run, strictly above zero.
+# thesis, Experimental setup: temperature held at ONE value in every run, strictly above zero.
 # It is NOT varied with the replicate index, and it is NOT zero: the run-to-run
 # variance is the error term epsilon against which every coefficient in eq. (2)
-# is tested, and greedy decoding would drive it to zero. See thesis sec:setup para 3.
+# is tested, and greedy decoding would drive it to zero. See thesis, Experimental setup para 3.
 TEMPERATURE = 0.7
 
-# thesis sec:setup: an explicit sampling seed is passed to the model interface so any
+# thesis, Experimental setup: an explicit sampling seed is passed to the model interface so any
 # run can be regenerated exactly, and the same seed list is used in every cell.
 SEND_API_SEED = True
 
 API_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 API_KEY_ENV = "OPENAI_API_KEY"
 
-# thesis sec:setup: R independent seeds per configuration per dataset.
-REPLICATES_R = 20               # MDE = 0.22 sigma per dataset (thesis sec:setup)
+# thesis, Experimental setup: R independent seeds per configuration per dataset.
+REPLICATES_R = 20               # MDE = 0.22 sigma per dataset (thesis, Experimental setup)
 SEED_LIST = None                # derived from REPLICATES_R by seeds(); same list in every cell
 
-# thesis sec:setup / harness: safety bounds, properties of the harness not the treatment.
+# thesis, Experimental setup / harness: safety bounds, properties of the harness not the treatment.
 HARD_CAP = 8                    # max executor calls per run
 MAX_BAD = 4                     # max malformed/rejected replies per run
 API_RETRIES = 4                 # transient server faults (500/502/503, timeouts)
@@ -56,13 +56,13 @@ API_RETRIES = 4                 # transient server faults (500/502/503, timeouts
 RATE_LIMIT_RETRIES = 12
 MAX_BACKOFF_S = 90
 
-# thesis sec:setup: a run that fails to produce a valid experiment is repeated
+# thesis, Experimental setup: a run that fails to produce a valid experiment is repeated
 # with a fresh seed until the cell holds exactly R completed runs. This bounds
 # how many replacements one cell may draw before the study stops rather than
 # quietly running short and breaking balance.
 CELL_RETRIES = 3
 
-# thesis sec:setup: identical split protocol for every dataset and every run.
+# thesis, Experimental setup: identical split protocol for every dataset and every run.
 TEST_SIZE = 0.30
 SPLIT_SEED = 0
 CV_FOLDS = 5
@@ -70,7 +70,7 @@ SCORING = "accuracy"
 
 
 # ------------------------------------------------------------------- tasks ---
-# thesis sec:setup names the suite exactly: Breast Cancer Wisconsin (569 x 30,
+# thesis, Experimental setup names the suite exactly: Breast Cancer Wisconsin (569 x 30,
 # two classes) and Wine (178 x 13, three classes), picked to differ in size,
 # dimensionality and class count. D = len(DATASETS) enters N = 2^5 * D * R, and
 # the dataset is a fixed effect in eq. (2), so this list is also the reference
@@ -79,14 +79,14 @@ DATASETS = ["breast_cancer", "wine"]
 
 
 # ------------------------------------------------------- executor whitelist --
-# thesis sec:setup: same whitelisted hyperparameters on every task.
+# thesis, Experimental setup: same whitelisted hyperparameters on every task.
 ALLOWED_PARAMS = {
     "random_forest": {"n_estimators", "max_depth", "min_samples_leaf", "max_features"},
     "gradient_boosting": {"n_estimators", "max_depth", "learning_rate", "subsample"},
 }
 
 # ------------------------------------------------------------- baseline ------
-# thesis sec:setup: one reference quantity per dataset, a0(d), the accuracy of a
+# thesis, Experimental setup: one reference quantity per dataset, a0(d), the accuracy of a
 # default-hyperparameter fit taken as the better of the two model families.
 # No exhaustive grid search is needed by the current metric set.
 
@@ -94,7 +94,7 @@ ALLOWED_PARAMS = {
 GAIN_SCALE = "cv"               # "cv" or "val"
 
 # Scales on which the gain is undefined for a dataset, because a0(d) is already
-# at the ceiling and no run can improve on it (thesis sec:setup). Measured, not assumed:
+# at the ceiling and no run can improve on it (thesis, Experimental setup). Measured, not assumed:
 #   wine: the 54-instance validation split is classified perfectly by defaults,
 #   so a0_val = 1.0 and only the cross-validated scale is usable there.
 GAIN_SCALES_EXCLUDED = {"wine": ["val"]}
@@ -108,12 +108,12 @@ GAIN_SCALE_ROBUSTNESS = "val"
 
 
 # ------------------------------------------------------- measurement window --
-# thesis sec:metrics "Measurement window": every metric is computed over the first three
+# thesis, Performance metrics "Measurement window": every metric is computed over the first three
 # experiments, three being what the fixed-budget level performs.
 WINDOW = 3
 
 # --------------------------------------------------------------- execution --
-# Runs are mutually independent (thesis sec:setup), so the outer loop parallelises.
+# Runs are mutually independent (thesis, Experimental setup), so the outer loop parallelises.
 # With more than one worker the estimators are given n_jobs=1: RandomForest with
 # n_jobs=-1 already saturates the cores, and nesting the two oversubscribes.
 WORKERS = 1
@@ -126,7 +126,7 @@ TABLE_BASENAME = "regression_table"
 
 
 def seeds():
-    """The seed list, identical in every cell (thesis sec:setup)."""
+    """The seed list, identical in every cell (thesis, Experimental setup)."""
     if REPLICATES_R is REQUIRED:
         raise ValueError("REPLICATES_R is not set")
     return list(range(REPLICATES_R))
