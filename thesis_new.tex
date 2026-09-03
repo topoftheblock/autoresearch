@@ -117,7 +117,7 @@ Sampling noise is treated differently: it is controlled rather than eliminated. 
 \
 \\paragraph\{Design and budget.\} The design is the complete $2^5$ factorial crossed with the task suite and replicated $R$ times, giving $N = 2^5 \\cdot D \\cdot R$ runs. With $D=2$ and $R=20$, this yields $N=1280$. The replicate count was not chosen for convenience: it fixes the smallest detectable level switch at $0.22\\,\\sigma$ per dataset, where $\\sigma$ denotes the run-to-run standard deviation of whichever metric is being fitted.\
 \
-\\paragraph\{Metrics.\} The metrics are derived directly from the structured transcript. No evaluation framework, scoring library or judge model is involved, since every metric is a difference in accuracy, a proportion of the proposals, or a count of executor calls.\
+\\paragraph\{Metrics.\} Every one is read straight off the structured transcript. No evaluation framework, scoring library or judge model is involved, since each is a difference in accuracy, a proportion of the proposals, or a count of executor calls.\
 \
 \\paragraph\{Measurement window.\} The stopping rule determines how many experiments a run performs, and every metric below aggregates over those experiments. A best score improves with the number of trials for reasons unrelated to the quality of the search, and a ratio computed over more proposals is estimated more precisely. Every metric is computed over the first three experiments, this being the number performed at the fixed-budget level and hence the number available in every run. Complete-run values are reported separately.\
 \
