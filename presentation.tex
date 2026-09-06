@@ -1,6 +1,6 @@
 % =====================================================================
 %  Autoresearch Loops: A Causal Study of the Instruction File
-%  Thesis defence, 15 minutes, 19 content frames.
+%  Thesis defence, 15 minutes, 16 content frames.
 %  Weight: background, research question, design, and why the design
 %  identifies the effect of program.md.
 %  Build:  pdflatex presentation.tex   (run twice for the frame counter)
@@ -43,7 +43,7 @@
   \titlepage
 \end{frame}
 
-% ================================================ BACKGROUND (5 frames)
+% ================================================ BACKGROUND (4 frames)
 
 \begin{frame}{An autoresearch loop runs its own experiments}
   \begin{itemize}
@@ -159,29 +159,6 @@
         spending an experiment.}
 \end{frame}
 
-\begin{frame}{It works. Nothing tells you which instruction worked.}
-  \begin{itemize}
-    \item The AI Scientist and Coscientist are evaluated end to end: did the
-          pipeline produce an acceptable artefact
-    \item MLAgentBench reports success rates across task suites
-    \item An end to end evaluation has exactly one treatment, the whole system,
-          so it cannot attribute anything to a part of that system
-  \end{itemize}
-  \vfill
-  \begin{alertblock}{Two obstacles to attribution}
-    \small
-    \textbf{Confounding.} One instruction file settles success criterion,
-    search breadth, stopping, reporting and emphasis at once. Compare two
-    written files and every sentence differs.\\[4pt]
-    \textbf{Prompt sensitivity.} Formatting choices that preserve meaning shift
-    accuracy by up to 76 points (Sclar et al.), yet models sometimes do equally
-    well on irrelevant or misleading instructions (Webson and Pavlick).
-  \end{alertblock}
-  \vfill
-  \fnote{Wording evidently matters. Reading the wording does not tell you how.
-        Establishing how is an empirical problem, not an interpretive one.}
-\end{frame}
-
 % ========================================== RESEARCH QUESTION (1 frame)
 
 \begin{frame}{Research questions}
@@ -203,7 +180,7 @@
   \end{itemize}
 \end{frame}
 
-% ===================================== EXPERIMENTAL DESIGN (8 frames)
+% ===================================== EXPERIMENTAL DESIGN (6 frames)
 
 \begin{frame}{From prose to a configuration vector}
   \begin{itemize}
@@ -253,56 +230,18 @@
         handling, fixes a reporting discipline and imposes a parsimony rule.}
 \end{frame}
 
-\begin{frame}{The treatment paragraphs are themselves a control}
+\begin{frame}{The complete factorial makes interactions estimable}
   \begin{itemize}
-    \item Written once by a language model from fixed meta prompts, then frozen
-          and reused verbatim
-    \item The generating model is distinct from the agent
-    \item Each paragraph is verified to entail its intended level and to
-          reference no other slot
-    \item The two levels of a slot are matched to within ten per cent in token
-          count
+    \item With all 32 files, every pairwise interaction $\beta_{ij}$ is
+          estimated separately from every main effect
+    \item The independence of the components therefore becomes a question
+          answerable \emph{from the data}, rather than one the design has to
+          assume
   \end{itemize}
   \vfill
-  \begin{alertblock}{Why not write them by hand}
-    Had the author composed them, the wording of every treatment would have
-    been a free parameter confounded with the author's own stylistic habits,
-    and no measured effect could have been separated from it.
-  \end{alertblock}
-\end{frame}
-
-\begin{frame}{Configuration change as intervention}
-  \begin{itemize}
-    \item The configurations are \textbf{constructed}, not observed: for each of
-          the 32 values of $c$ the file is generated and executed
-    \item In observational prompt data the components would correlate, since an
-          author who writes a precise success criterion tends to write a
-          careful stopping rule as well. Construction breaks that correlation
-    \item Across the 32 files each component sits at level 1 in exactly 16, and
-          within each half the remaining four stay balanced
-  \end{itemize}
-  \vfill
-  \begin{block}{What that buys}
-    The difference in mean outcome between runs with $c_i=1$ and runs with
-    $c_i=0$ cannot be produced by any other component. Confounding is
-    eliminated by the design itself, with no statistical adjustment.
-  \end{block}
-\end{frame}
-
-\begin{frame}{Why the complete factorial and not a fraction}
-  \begin{itemize}
-    \item With all 32 files, every pairwise interaction is estimated separately
-          from every main effect
-    \item The independence of the components becomes a question answerable
-          \emph{from the data}
-    \item A fractional design must instead assume an answer, because the runs
-          that separate a main effect from an interaction are precisely the
-          ones it omits
-  \end{itemize}
-  \vfill
-  \begin{block}{Cost}
-    Thirty two cells is the price of not assuming RQ2's answer. At this scale
-    the price is acceptable.
+  \begin{block}{This is what makes RQ2 testable}
+    Does the effect of one component depend on the level of another, or do they
+    simply add?
   \end{block}
 \end{frame}
 
@@ -401,46 +340,7 @@
   \end{itemize}
 \end{frame}
 
-% ============================== WHY THE DESIGN IDENTIFIES THE EFFECT (1)
-
-\begin{frame}{Why this design explains the effect of \texttt{\prog}}
-  \scriptsize
-  \begin{tabular}{@{}p{5.0cm}p{8.5cm}@{}}
-    \toprule
-    \textbf{Threat to the inference} & \textbf{What removes it}\\
-    \midrule
-    Components correlate with each other &
-      Configurations are constructed, not observed. Exact balance makes each
-      $X_i$ orthogonal to the rest, so $\hat\beta_i$ does not move when another
-      component enters or leaves the model.\\
-    Author style leaks into the treatment &
-      Paragraphs generated by a separate model from fixed meta prompts, frozen,
-      length matched to within ten per cent.\\
-    Task difficulty drives the result &
-      Factorial crossed with the suite, so every $X_i$ is orthogonal to every
-      $D_j$. The $\hat\beta_i$ are within task effects.\\
-    The model invents its own numbers &
-      The executor is deterministic and unreachable from \texttt{\prog}.\\
-    The stopping rule inflates its own effect &
-      All metrics computed over a fixed three experiment window.\\
-    Unequal variance across the design &
-      HC3 errors, because the stopping rule fixes the trial count on one side
-      and frees it on the other.\\
-    Twenty tests, some will pass by chance &
-      Benjamini and Hochberg adjustment within each metric.\\
-    Interactions mistaken for main effects &
-      Complete factorial, so every pairwise term is separately identified.\\
-    A null effect versus an ignored instruction &
-      Per component compliance and manipulation checks.\\
-    \bottomrule
-  \end{tabular}
-  \vfill
-  \fnote{RQ1 is answered by the $\hat\beta_i$ under this design. RQ2 is answered
-        by the $\hat\beta_{ij}$, which exist only because the factorial is
-        complete.}
-\end{frame}
-
-% ================================================= RESULTS (3 frames)
+% ================================================= RESULTS (2 frames)
 
 \begin{frame}{Main effect estimates $2\hat\beta_i$}
   \scriptsize
