@@ -329,7 +329,7 @@ At every step, respond with a single JSON object and nothing else, matching one 
   \vfill
   \begin{columns}[T]
     \begin{column}{0.5\textwidth}
-      \begin{alertblock}{Why slot $O$ is a lever, not a style preference}
+      \begin{alertblock}{$O$ is a lever}
         \scriptsize
         The loop carries no state but its own transcript. What the model wrote
         in the hypothesis and interpretation fields of the previous turns is
@@ -619,25 +619,12 @@ At every step, respond with a single JSON object and nothing else, matching one 
           Reporting style dominates at $2\hat\beta_O = -0.075$ on the wasted
           trial ratio, against $+0.001$ for the only component that moves the
           gain over default
-    \item \textbf{RQ2}: \textbf{the components are close to additive.} Thirty
-          seven of the forty pairwise terms show no evidence of interaction.
-          The three that survive are all on the wasted trial ratio and all
-          involve the reporting style: $S\times O = -0.031$,
-          $B\times O = +0.018$, $O\times E = -0.016$, and all ten terms
-          together lift $R^2$ only from $0.159$ to $0.192$
+    \item \textbf{RQ2}: thirty seven of the forty pairwise terms show no
+          evidence of interaction. The three that survive are all on the wasted
+          trial ratio and all involve the reporting style:
+          $S\times O = -0.031$, $B\times O = +0.018$, $O\times E = -0.016$, and
+          all ten terms together lift $R^2$ only from $0.159$ to $0.192$
   \end{itemize}
-  \vspace{-0.15cm}
-  \begin{block}{Additive means the effects simply add up}
-    \scriptsize
-    A coat worth 5 degrees and a hat worth 2 degrees give you 7. So knowing what
-    each slot does on its own is enough to predict any combination, and
-    \texttt{\prog} can be tuned one sentence at a time rather than by searching
-    combinations. The one real exception is $S\times O$: adding the separate
-    effects predicts a wasted trial ratio of $0.100$ for an adaptive budget with
-    verbose reporting, where the observed value is $0.037$. A generous
-    experiment budget is only safe if the model is also made to write out its
-    reasoning.
-  \end{block}
 \end{frame}
 
 \end{document}
