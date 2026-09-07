@@ -102,9 +102,12 @@
     \end{column}
   \end{columns}
   \vfill
-  \begin{alertblock}{The uncomfortable part}
-    The loops demonstrably function. The reasons for their behaviour are
-    unknown, including to the people running them.
+  \begin{alertblock}{The gap}
+    The loops demonstrably function, yet why they behave as they do is unknown,
+    including to the people running them. And no prior work has set out to
+    explain one: such systems are evaluated end to end, on whether the pipeline
+    produced an acceptable artefact, so the literature can say that a loop
+    worked but never which part of its instruction file was responsible.
   \end{alertblock}
 \end{frame}
 
@@ -136,9 +139,9 @@
   \end{block}
 \end{frame}
 
-\begin{frame}{Figure 1: control flow of one run}
+\begin{frame}{Figure 1: control flow of one run (\texttt{loop/runner.py})}
   \begin{center}
-  \resizebox{!}{5.75cm}{%
+  \resizebox{!}{5.0cm}{%
   \begin{tikzpicture}[
     font=\small,
     proc/.style={rectangle, draw, thick, rounded corners=2pt, text width=2.5cm,
@@ -151,7 +154,7 @@
   ]
     \node[term] (prog) at (0,0)       {Instruction file \texttt{\prog}, rendered from configuration $c$};
     \node[llm]  (prop) at (4.0,0)     {Propose experiment};
-    \node[dec]  (val)  at (7.7,0)     {Well\\formed?};
+    \node[dec]  (val)  at (7.7,0)     {Valid JSON,\\shape, whitelist?};
     \node[proc] (exec) at (11.4,0)    {Execute experiment (deterministic harness)};
     \node[llm]  (intp) at (11.4,-3.4) {Interpret result};
     \node[dec]  (stop) at (7.7,-3.4)  {Stop?};
@@ -164,16 +167,20 @@
     \draw[flow] (intp) -- (stop);
     \draw[flow] (stop) -- node[above]{yes} (rep);
 
-    \draw[flow] (val.north)  -- node[right,pos=0.45]{no} (7.7,1.7) -- (4.0,1.7) -- (prop.north);
+    \draw[flow] (val.north)  -- node[right,pos=0.42,align=left]{no, and\\one of 4\\bad replies} (7.7,1.7) -- (4.0,1.7) -- (prop.north);
     \draw[flow] (stop.south) -- node[right,pos=0.35]{no} (7.7,-5.2) -- (1.3,-5.2)
                              -- (1.3,-1.3) -- (4.0,-1.3) -- (prop.south);
   \end{tikzpicture}}
   \end{center}
   \vfill
-  \fnote{Shaded boxes are language model calls. The execute box is
+  \fnote{Shaded boxes are language model calls; the execute box is
         deterministic, so every number the loop reasons about was measured and
-        not generated. A rejected proposal returns to the proposal step without
-        spending an experiment.}
+        not generated. The validity check is two checks in the code: the harness
+        parses the reply and checks its shape, and \texttt{train.py} checks the
+        whitelist before any estimator is fitted. Either way the proposal is
+        logged as an attempt, which is what the wasted trial ratio counts, and
+        costs a turn but not an experiment. A run ends on the model's stop
+        decision, on 8 executed experiments, or on 4 bad replies.}
 \end{frame}
 
 % ========================================== RESEARCH QUESTION (1 frame)
@@ -328,15 +335,30 @@ At every step, respond with a single JSON object and nothing else, matching one 
      unrelated.
 \end{lstlisting}
   \vfill
-  \begin{block}{What a configuration is, concretely}
-    \small
-    $c = (1,0,1,1,0)$ is the file \texttt{M1-B0-S1-O1-E0}: it takes paragraph
-    \texttt{[1]} in the evaluation slot, \texttt{[0]} in breadth, \texttt{[1]}
-    in stopping, \texttt{[1]} in reporting and \texttt{[0]} in emphasis. Its
-    neighbour \texttt{M1-B0-S1-O0-E0} is the same file with one paragraph
-    swapped and nothing else changed. The other 30 files are the remaining
-    combinations.
-  \end{block}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{alertblock}{Why slot $O$ is a lever, not a style preference}
+        \scriptsize
+        The loop carries no state but its own transcript. What the model wrote
+        in the hypothesis and interpretation fields of the previous turns is
+        the only thing it can read back before proposing the next experiment.
+        Slot $O$ therefore governs how much of the loop's reasoning is written
+        down and available to itself: terse replies record the numbers, full
+        sentences record why those numbers were sought.
+      \end{alertblock}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{What a configuration is, concretely}
+        \scriptsize
+        $c = (1,0,1,1,0)$ is the file \texttt{M1-B0-S1-O1-E0}: paragraph
+        \texttt{[1]} in the evaluation slot, \texttt{[0]} in breadth,
+        \texttt{[1]} in stopping, \texttt{[1]} in reporting, \texttt{[0]} in
+        emphasis. Its neighbour \texttt{M1-B0-S1-O0-E0} is the same file with
+        one paragraph swapped and nothing else changed. The other 30 files are
+        the remaining combinations.
+      \end{block}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 \begin{frame}{The complete factorial makes interactions estimable}
@@ -362,8 +384,6 @@ At every step, respond with a single JSON object and nothing else, matching one 
         \item Wine, $178\times13$, three classes
         \item One stratified $70/30$ split per task, same seed throughout
         \item Two model families under a fixed hyperparameter whitelist
-        \item Baseline $a_0(d)$: a default fit, better of the two families,
-              computed with no language model. $0.960$ on both tasks
       \end{itemize}
     \end{column}
     \begin{column}{0.45\textwidth}
@@ -382,13 +402,16 @@ At every step, respond with a single JSON object and nothing else, matching one 
       \end{alertblock}
     \end{column}
   \end{columns}
-  \vfill
-  \fnote{The executor returns the same record every time: cross validated
-        accuracy, its across fold standard deviation, held out validation
-        accuracy. The instruction file alters what the loop attends to, not what
-        is measured. Every run passes an explicit sampling seed and every cell
-        draws from the same seed list, so the draws cannot favour one
-        configuration.}
+  \vspace{-0.1cm}
+  \begin{block}{The baseline $a_0(d)$: exactly two fits per dataset}
+    \small
+    One \texttt{RandomForestClassifier} and one \texttt{GradientBoostingClassifier},
+    each constructed with \emph{no hyperparameters passed at all}, so with
+    scikit-learn's own defaults, and each scored by the same procedure as every
+    experiment in the study. $a_0(d)$ is the better of the two. On both datasets
+    that is the random forest: $0.9598$ on Breast Cancer and $0.9600$ on Wine.
+    No grid search, so nothing estimated enters the comparison.
+  \end{block}
 \end{frame}
 
 \begin{frame}{Design and budget}
