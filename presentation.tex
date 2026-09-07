@@ -610,26 +610,31 @@ At every step, respond with a single JSON object and nothing else, matching one 
 
 \begin{frame}{Conclusion}
   \begin{itemize}
-    \item \texttt{\prog} does what controller code does in conventional
-          software, yet cannot be read the way code is read, so it was treated
-          as a configuration vector
-    \item All $2^5=32$ files, two datasets, twenty replicates, $1{,}280$ runs
-          against a real executor
-    \item Because the configurations were constructed rather than collected,
-          the coefficients admit a causal reading. Because the factorial is
-          complete, independence could be tested rather than assumed
-    \item \textbf{RQ1}: the components determine the process, not the outcome,
-          and reporting style dominates
-    \item \textbf{RQ2}: three of forty interactions survive, all involving
-          reporting style, so the components are close to additive
+    \item \texttt{\prog} does the work of controller code but cannot be read
+          like code, so it was treated as a configuration vector: all
+          $2^5=32$ files, two datasets, twenty replicates, $1{,}280$ runs
+          against a real executor. Constructed rather than collected, so the
+          coefficients admit a causal reading; complete, so independence could
+          be tested rather than assumed
+    \item \textbf{RQ1}: the components determine the process, not the outcome.
+          Reporting style dominates at $2\hat\beta_O = -0.075$ on the wasted
+          trial ratio, while the only component that moves the gain over
+          default moves it by $+0.001$
+    \item \textbf{RQ2}: \textbf{the components are close to additive}. Thirty
+          seven of the forty pairwise terms show no evidence of interaction,
+          and the three that survive adjustment are all on the wasted trial
+          ratio and all involve the reporting style
   \end{itemize}
-  \vfill
-  \begin{block}{}
-    \centering
-    For tasks of this difficulty, \texttt{\prog} determines how the loop
-    conducts its search rather than what the search returns.
+  \vspace{-0.1cm}
+  \begin{block}{The coefficients behind RQ2}
+    \small
+    $S\times O = -0.031$, \; $B\times O = +0.018$, \; $O\times E = -0.016$, all
+    adjusted $p<0.05$. Adding all ten terms lifts $R^2$ from $0.159$ to
+    $0.192$, so the interaction structure is real but small. Only $S\times O$
+    is main effect sized: an adaptive budget inflates waste from $0.068$ to
+    $0.143$ under terse reporting, but only from $0.024$ to $0.037$ under
+    verbose reporting.
   \end{block}
-  \vfill
 \end{frame}
 
 \end{document}
