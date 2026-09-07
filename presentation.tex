@@ -1,6 +1,6 @@
 % =====================================================================
 %  Autoresearch Loops: A Causal Study of the Instruction File
-%  Thesis defence, 15 minutes, 19 content frames.
+%  Thesis defence, 15 minutes, 22 content frames.
 %  Weight: background, research question, design, and why the design
 %  identifies the effect of program.md.
 %  Build:  pdflatex presentation.tex   (run twice for the frame counter)
@@ -197,7 +197,7 @@
   \end{itemize}
 \end{frame}
 
-% ===================================== EXPERIMENTAL DESIGN (9 frames)
+% ===================================== EXPERIMENTAL DESIGN (12 frames)
 
 \begin{frame}{From prose to a configuration vector}
   \begin{itemize}
@@ -391,7 +391,7 @@ At every step, respond with a single JSON object and nothing else, matching one 
         configuration.}
 \end{frame}
 
-\begin{frame}{Design, budget and metrics}
+\begin{frame}{Design and budget}
   \begin{block}{}
     \centering
     $N \;=\; \underbrace{2^5}_{\text{configurations}} \times
@@ -399,29 +399,86 @@ At every step, respond with a single JSON object and nothing else, matching one 
              \underbrace{R}_{\text{20 replicates}} \;=\; 1{,}280$ runs,
              64 cells, 20 each
   \end{block}
-  \vspace{-0.1cm}
-  \scriptsize
-  \begin{tabular}{@{}llp{6.9cm}@{}}
-    \toprule
-    & \textbf{Metric} & \textbf{Definition}\\
-    \midrule
-    Outcome    & Gain over default  & recommended score minus $a_0(d)$; negative means worse than untuned defaults\\
-    Outcome    & Improvement rate   & share of executed trials beating the best seen earlier in the run\\
-    Efficiency & Wasted trial ratio & (rejected or malformed $+$ exact duplicates) over proposals attempted\\
-    Efficiency & Cost to best       & executor calls up to and including the run's best score\\
-    \bottomrule
-  \end{tabular}
-  \normalsize
   \vfill
   \begin{itemize}
-    \item $R=20$ fixes the smallest detectable level switch at $0.22\,\sigma$
-          per dataset
-    \item Every metric is read off the structured transcript. No judge model,
-          no scoring library, so nothing in the measurement can drift with the
-          instruction being tested
-    \item All metrics computed over the \textbf{first three experiments}, the
-          number available in every run whatever the stopping rule
+    \item The complete $2^5$ factorial, crossed with the task suite and
+          replicated. Every cell holds exactly 20 completed runs, so balance is
+          exact rather than approximate
+    \item $R=20$ was not chosen for convenience. It fixes the smallest
+          detectable level switch at $0.22\,\sigma$ per dataset, where $\sigma$
+          is the run to run standard deviation of the metric being fitted
+    \item Of the 1{,}280 runs, 1{,}278 terminated on the model's own stop
+          decision and 2 on the harness cap, so the cap is a safety net rather
+          than a constraint that could be confounded with the stopping rule
   \end{itemize}
+\end{frame}
+
+\begin{frame}{The dependent variables: what the run achieved}
+  \begin{block}{Gain over default}
+    \small
+    The difference between the score of the configuration the run finally
+    recommends and the baseline $a_0(d)$. It answers the plainest question one
+    can ask of an autoresearch run: did the tuning achieve anything that untuned
+    defaults would not have given for free. A negative value is not a rounding
+    artefact but a real failure mode, a run that talked itself into a
+    configuration worse than the one it started from.
+  \end{block}
+  \vfill
+  \begin{block}{Improvement rate}
+    \small
+    The proportion of executed trials whose score is strictly higher than the
+    best score seen earlier in the same run. Where the gain asks what the loop
+    ended with, this asks whether the search was learning as it went. A run of
+    eight trials containing a single improvement is close to guessing; a high
+    rate is evidence that the interpret step is genuinely informing the next
+    proposal rather than decorating it.
+  \end{block}
+\end{frame}
+
+\begin{frame}{The dependent variables: what the search cost}
+  \begin{block}{Wasted trial ratio}
+    \small
+    The proposals rejected before execution, whether malformed or outside the
+    whitelist, together with those that exactly duplicate an earlier proposal in
+    the same run, divided by all proposals attempted. Both failure modes consume
+    a turn and return no measurement. A high ratio means the loop is either
+    failing to satisfy the response format or failing to consult its own
+    transcript.
+  \end{block}
+  \vfill
+  \begin{block}{Cost to best}
+    \small
+    The number of executor calls up to and including the one that produced the
+    run's highest score, taking the earliest such call on ties. Exploration
+    after that point does not count. Because every executed trial consumes the
+    same fixed budget, this is simply the computation spent to reach the result.
+  \end{block}
+  \vfill
+  \fnote{The first two are outcome metrics, the second two efficiency metrics,
+        and the results turn on that distinction. All four are read straight off
+        the structured transcript: each is a difference in accuracy, a
+        proportion of proposals, or a count of executor calls, so no judge model
+        or scoring library enters the measurement and nothing in it can drift
+        with the instruction being tested.}
+\end{frame}
+
+\begin{frame}{The measurement window}
+  \begin{itemize}
+    \item The stopping rule decides how many experiments a run performs, and
+          every metric above aggregates over those experiments
+    \item A best score improves with the number of trials for reasons that have
+          nothing to do with the quality of the search, and a ratio computed
+          over more proposals is estimated more precisely
+    \item Left uncorrected, the stopping rule would inflate its own apparent
+          effect on any metric that accumulates over trials
+  \end{itemize}
+  \vfill
+  \begin{block}{Resolution}
+    All four metrics are computed over the \textbf{first three experiments},
+    that being the number performed at the fixed budget level and hence the
+    number available in every run. Complete run values are reported separately
+    as a robustness check.
+  \end{block}
 \end{frame}
 
 \begin{frame}{The regression model}
