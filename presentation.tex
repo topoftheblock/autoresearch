@@ -609,31 +609,34 @@ At every step, respond with a single JSON object and nothing else, matching one 
 \end{frame}
 
 \begin{frame}{Conclusion}
+  \small
   \begin{itemize}
-    \item \texttt{\prog} does the work of controller code but cannot be read
-          like code, so it was treated as a configuration vector: all
-          $2^5=32$ files, two datasets, twenty replicates, $1{,}280$ runs
-          against a real executor. Constructed rather than collected, so the
-          coefficients admit a causal reading; complete, so independence could
-          be tested rather than assumed
+    \item $2^5 = 32$ instruction files, two datasets, twenty replicates,
+          $1{,}280$ runs against a real executor. Constructed rather than
+          collected, so the coefficients admit a causal reading; complete, so
+          independence could be tested rather than assumed
     \item \textbf{RQ1}: the components determine the process, not the outcome.
           Reporting style dominates at $2\hat\beta_O = -0.075$ on the wasted
-          trial ratio, while the only component that moves the gain over
-          default moves it by $+0.001$
-    \item \textbf{RQ2}: \textbf{the components are close to additive}. Thirty
-          seven of the forty pairwise terms show no evidence of interaction,
-          and the three that survive adjustment are all on the wasted trial
-          ratio and all involve the reporting style
+          trial ratio, against $+0.001$ for the only component that moves the
+          gain over default
+    \item \textbf{RQ2}: \textbf{the components are close to additive.} Thirty
+          seven of the forty pairwise terms show no evidence of interaction.
+          The three that survive are all on the wasted trial ratio and all
+          involve the reporting style: $S\times O = -0.031$,
+          $B\times O = +0.018$, $O\times E = -0.016$, and all ten terms
+          together lift $R^2$ only from $0.159$ to $0.192$
   \end{itemize}
-  \vspace{-0.1cm}
-  \begin{block}{The coefficients behind RQ2}
-    \small
-    $S\times O = -0.031$, \; $B\times O = +0.018$, \; $O\times E = -0.016$, all
-    adjusted $p<0.05$. Adding all ten terms lifts $R^2$ from $0.159$ to
-    $0.192$, so the interaction structure is real but small. Only $S\times O$
-    is main effect sized: an adaptive budget inflates waste from $0.068$ to
-    $0.143$ under terse reporting, but only from $0.024$ to $0.037$ under
-    verbose reporting.
+  \vspace{-0.15cm}
+  \begin{block}{Additive means the effects simply add up}
+    \scriptsize
+    A coat worth 5 degrees and a hat worth 2 degrees give you 7. So knowing what
+    each slot does on its own is enough to predict any combination, and
+    \texttt{\prog} can be tuned one sentence at a time rather than by searching
+    combinations. The one real exception is $S\times O$: adding the separate
+    effects predicts a wasted trial ratio of $0.100$ for an adaptive budget with
+    verbose reporting, where the observed value is $0.037$. A generous
+    experiment budget is only safe if the model is also made to write out its
+    reasoning.
   \end{block}
 \end{frame}
 
