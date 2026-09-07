@@ -1,0 +1,437 @@
+% Autoresearch Loops -- 15-minute defence deck
+%   pdflatex presentation.tex            -> slides
+%   uncomment \setbeameroption below     -> slides + speaker notes
+\documentclass[aspectratio=169,11pt]{beamer}
+\usetheme{metropolis}
+\usepackage{appendixnumberbeamer}
+\usepackage{booktabs}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{shapes.geometric,arrows,positioning}
+
+% \setbeameroption{show notes on second screen=right}   % presenter view
+% \setbeameroption{show only notes}                     % notes handout
+
+\metroset{block=fill,numbering=fraction,progressbar=frametitle}
+\setbeamertemplate{note page}{\insertnote}
+
+\title{Autoresearch Loops}
+\subtitle{A Causal Study of the Instruction File}
+\author{Christian Block}
+\institute{Research project with Prof.\ Ramesh}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+% ---------------------------------------------------------------- MOTIVATION
+\begin{frame}{Nobody knows why these loops work}
+\begin{itemize}
+  \item March 2026: \texttt{autoresearch} ships
+  \item ${\sim}13{,}000$ forks in six months
+  \item An agent runs its own experiments
+  \item Nobody can say \emph{which instruction} worked
+\end{itemize}
+\vfill
+\begin{center}\small
+\alert{Visual:} full-bleed screenshot of \texttt{github.com/karpathy/autoresearch},
+star and fork counts visible
+\end{center}
+\note{In March 2026, Andrej Karpathy released a repository called autoresearch.
+The idea is simple and slightly unsettling. You give a language model a goal,
+some code it is allowed to edit, and a script that runs a trial and hands back
+one number. Then you walk away. Overnight the model proposes a change, runs it,
+reads the result, decides what to try next, and repeats until the budget is
+gone. In six months it has been forked over thirteen thousand times. People are
+running it on real systems. And here is the part that motivated this project:
+when one of these loops produces a good result, nobody can tell you which part
+of the instructions was responsible. That is the gap I set out to close.}
+\end{frame}
+
+\begin{frame}{The architecture is three files}
+\begin{center}
+\begin{tikzpicture}[font=\small,
+  f/.style={rectangle,draw,thick,rounded corners=3pt,text width=3.1cm,
+            align=center,minimum height=1.5cm,inner sep=4pt}]
+\node[f,fill=gray!8]        (p) at (0,0)   {\texttt{prepare.py}\\[2pt]\scriptsize data + score\\\scriptsize\alert{nobody edits}};
+\node[f,fill=gray!8]        (t) at (4.2,0) {\texttt{train.py}\\[2pt]\scriptsize the model\\\scriptsize\alert{agent edits}};
+\node[f,fill=mLightBrown!25](m) at (8.4,0) {\texttt{program.md}\\[2pt]\scriptsize instructions\\\scriptsize\alert{human edits}};
+\end{tikzpicture}
+\end{center}
+\vfill
+\begin{itemize}
+  \item No scheduler. No driver program.
+  \item The cycle exists only as English prose
+  \item \alert{\texttt{program.md} is not configuration --- it is the controller}
+\end{itemize}
+\note{The architecture is a contract between three files, and what matters is
+who owns each one. prepare dot py fixes the data and defines the score. Nobody
+touches it, so every experiment is scored identically. train dot py holds the
+model, and the agent is the only thing that edits it. program dot md holds the
+instructions, and the human is the only one who edits that. Now notice what is
+missing. There is no scheduler. There is no driver program. The nine-step
+experiment cycle exists only as English prose inside program dot md, and the
+model itself is the execution layer. So program dot md is not configuration
+handed to a controller. It IS the controller. That is the observation the whole
+project rests on.}
+\end{frame}
+
+\begin{frame}{It already works in production. That is the problem.}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\begin{itemize}
+  \item Shopify Liquid, PR \#2056
+  \item \alert{53\%} faster parse and render
+  \item ${\sim}120$ experiments, 93 commits
+  \item Author: ``probably overfitted''
+  \item \alert{Never merged}
+\end{itemize}
+\end{column}
+\begin{column}{0.44\textwidth}
+\begin{center}\small
+\alert{Visual:} screenshot of the PR header\\with the \textsc{open} badge
+\end{center}
+\end{column}
+\end{columns}
+\note{This is not a toy concern. Here is an autoresearch run against Shopify's
+Liquid template engine, which is production infrastructure. It cut parse and
+render time by fifty-three per cent, over roughly a hundred and twenty
+experiments across ninety-three commits. And then it was never merged. The
+author's own assessment was that the gain was probably overfitted. So we have a
+system that produced a large, real, measurable improvement, and the people
+closest to it could not decide whether to trust it. Benchmarks have the same
+shape. The AI Scientist, Coscientist, MLAgentBench --- all of them report
+whether the pipeline succeeded end to end. None of them tell you which part of
+the instruction file did the work. Success is measured; attribution is not.}
+\end{frame}
+
+\begin{frame}{Two questions}
+\vfill
+\begin{block}{RQ1}
+Which components of the instruction file \alert{causally determine} which
+aspects of the loop's behaviour, and how large is each effect?
+\end{block}
+\vfill
+\begin{block}{RQ2}
+Do the components act \alert{independently} of one another?
+\end{block}
+\vfill
+\note{The obstacle is confounding. An instruction file settles several things at
+once: what counts as success, how widely the agent may search, when it must
+stop, how it must report, where to spend effort. If you compare two differently
+worded files, every sentence differs, so nothing is identified. And the
+prompt-sensitivity literature makes this sharper --- Sclar and colleagues showed
+that formatting changes which preserve meaning can move accuracy by seventy-six
+points. Wording clearly matters, and reading the wording will not tell you how.
+So I ask two questions. First: which components causally determine which aspects
+of the loop's behaviour, and how large is each effect? Second: do those
+components act independently, or does the effect of one depend on another?}
+\end{frame}
+
+% --------------------------------------------------------------- METHODOLOGY
+\begin{frame}{The loop under study}
+\begin{center}
+\begin{tikzpicture}[font=\scriptsize,node distance=1.5cm,
+  b/.style={rectangle,draw,thick,rounded corners=2pt,minimum height=0.85cm,
+            text width=2.05cm,align=center},
+  llm/.style={b,fill=mLightBrown!30},
+  det/.style={b,fill=gray!12},
+  a/.style={->,thick}]
+\node[llm] (p)                    {Propose};
+\node[det] (e) [right=of p]       {Execute\\\scriptsize deterministic};
+\node[llm] (i) [right=of e]       {Interpret};
+\node[b]   (d) [right=of i]       {Decide};
+\draw[a] (p)--(e); \draw[a] (e)--(i); \draw[a] (i)--(d);
+\draw[a] (d.south) -- ++(0,-0.7) -| node[pos=0.25,below]{continue} (p.south);
+\end{tikzpicture}
+\end{center}
+\begin{itemize}
+  \item Shaded = model call \quad Unshaded = harness
+  \item Search space: hyperparameters, not code
+  \item \alert{The model never computes a number}
+\end{itemize}
+\note{This is the loop. The model alternates between two moves, each a single
+JSON object. A propose carries a hypothesis, a model family, and hyperparameter
+values. An interpret carries a reading of the last measurement and a decision to
+continue or stop. If you have seen ReAct or the Ralph pattern, this is that
+shape --- reason, act, observe, repeat. One narrowing matters. The search space
+is a hyperparameter space, not arbitrary code, so that the instruction file
+stays the only free variable. And critically, the model never computes a number.
+It picks what gets computed, and reads the answer back. The shaded boxes are
+model calls; the unshaded one is a deterministic harness running scikit-learn.
+That means every value in a transcript is traceable: either the executor
+produced it, and it is a fact about the task, or the model produced it, and it
+is a fact about the loop's behaviour.}
+\end{frame}
+
+\begin{frame}{Stop reading the prompt. Start configuring it.}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{itemize}
+  \item One template, five variable slots
+  \item Everything else byte-identical
+  \item Each slot written at two levels
+  \item \alert{A file becomes a vector}
+\end{itemize}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{center}
+\vspace{0.3cm}
+$c=(c_1,\ldots,c_5),\quad c_i\in\{0,1\}$\\[6pt]
+{\large$c=(1,0,1,0,1)$}\\[4pt]
+{\scriptsize $2^5=32$ distinct instruction files}
+\end{center}
+\end{column}
+\end{columns}
+\note{Here is the core move of the project. Instead of treating the instruction
+file as prose to be interpreted, I treat it as a configuration vector. Every
+file comes out of one template. The fixed part --- the research question, the
+executor interface, the response format --- is byte-identical across every file
+I generate. The variable part is exactly five paragraphs, each written at one of
+two levels. Nothing else in the file moves. So a complete instruction file is
+described by five binary digits. That is what makes the problem tractable: once
+a prompt is a vector, the question what does this file do becomes a question you
+can answer with an experiment instead of an argument.}
+\end{frame}
+
+\begin{frame}{The five components}
+\small
+\begin{tabular}{@{}clll@{}}
+\toprule
+& \textbf{Component} & \textbf{Level 0} & \textbf{Level 1}\\
+\midrule
+$M$ & Evaluation criterion & undefined      & 5-fold CV accuracy\\
+$B$ & Search breadth       & one family     & both families\\
+$S$ & Stopping rule        & fixed 3        & adaptive, up to 8\\
+$O$ & Reporting style      & terse          & full sentences\\
+$E$ & Search emphasis      & explore first  & exploit first\\
+\bottomrule
+\end{tabular}
+\vfill
+\begin{itemize}\small
+  \item Categories taken from a real \texttt{program.md}
+  \item All ten paragraphs LLM-written, then frozen
+\end{itemize}
+\note{These are the five components. Evaluation criterion: either success is
+left undefined, or it is pinned to five-fold cross-validated accuracy. Search
+breadth: commit to one model family, or compare both. Stopping rule: a fixed
+budget of exactly three experiments, or an adaptive budget of up to eight that
+halts on diminishing returns. Reporting style: terse, or full sentences stating
+hypothesis and interpretation. And emphasis: explore several configurations
+first, or exploit a promising one immediately. These are not invented for the
+study. A real program dot md hardcodes a baseline, says how to handle failures,
+fixes a reporting discipline, and imposes a parsimony rule. These five come from
+those categories. One control worth noting: a language model wrote all ten
+paragraphs from fixed meta-prompts, and they were then frozen and reused word
+for word --- so my own stylistic habits are not a free parameter tangled up in
+the treatment.}
+\end{frame}
+
+\begin{frame}{Run the whole space}
+\begin{center}
+{\Large $N \;=\; \underbrace{2^5}_{\text{32 configs}} \times \underbrace{D}_{\text{2 tasks}} \times \underbrace{R}_{\text{20 reps}} \;=\; 1{,}280$ runs}
+\end{center}
+\vfill
+\begin{itemize}
+  \item Constructed, not observed
+  \item Confounding gone \alert{by design}, not adjustment
+  \item Every interaction estimable from every main effect
+  \item A fraction would have to \alert{assume} RQ2's answer
+\end{itemize}
+\note{I run the complete space. All thirty-two configurations, crossed with two
+datasets, twenty replicates each --- twelve hundred and eighty real runs against
+a real executor. Two things follow from running all of it. First, because I
+construct the configurations rather than collecting them, confounding is
+eliminated by the design itself, with no statistical adjustment. In
+observational prompt data, whoever writes a precise success criterion probably
+also writes a careful stopping rule --- those two would be correlated.
+Construction breaks that. Second, with all thirty-two files in hand, every
+pairwise interaction is estimated separately from every main effect. A
+fractional design would have to assume the components act independently, because
+the runs that distinguish a main effect from an interaction are exactly the ones
+it skips. Thirty-two cells is the price of not assuming, and at this scale I can
+pay it.}
+\end{frame}
+
+\begin{frame}{What I held fixed --- and one thing I did not}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Held constant}
+\begin{itemize}\small
+  \item Pinned model snapshot
+  \item One stratified 70/30 split
+  \item Same executor and whitelist
+  \item Same seed list in every cell
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{alertblock}{Temperature $=0.7$, not $0$}
+\small Run-to-run variance \emph{is} the error term.\\
+Greedy decoding would zero it --- and take
+every standard error with it.
+\end{alertblock}
+\end{column}
+\end{columns}
+\note{Controls. The agent model is pinned to a dated snapshot rather than a
+moving alias. The split, the seed, the executor, the whitelist, the fixed part
+of the template --- all constant. Runs are separate conversations, so nothing
+carries over. Now the one that gets questioned, so let me address it directly. I
+did not run at temperature zero. It is fixed at zero point seven for every
+single run. This is deliberate. Run-to-run variance is the error term that every
+coefficient in this study is tested against. A deterministic loop would drive
+that variance to zero and take every standard error with it --- I would have
+point estimates and no way to say whether any of them were distinguishable from
+noise. So I hold temperature constant and above zero, which makes it a
+controlled constant rather than an eliminated one, and I pass an explicit
+sampling seed so any individual run can still be regenerated exactly.}
+\end{frame}
+
+\begin{frame}{Four metrics, straight off the transcript}
+\begin{itemize}
+  \item \textbf{Gain over default} --- did it improve anything?
+  \item \textbf{Wasted trial ratio} --- malformed $+$ duplicate
+  \item \textbf{Improvement rate} --- trials beating the best so far
+  \item \textbf{Cost to best} --- calls to reach the peak
+\end{itemize}
+\vfill
+\begin{center}
+\alert{No judge model. No scoring library. No evaluation framework.}
+\end{center}
+\note{Four dependent variables, all computed mechanically from the structured
+transcript. Gain over default: the score of the configuration the run finally
+recommends, minus a default-hyperparameter baseline computed before any run.
+Wasted trial ratio: proposals that were malformed or rejected by the whitelist,
+plus exact duplicates of earlier proposals, over all attempts --- both of those
+burn a turn without buying a measurement. Improvement rate: the share of
+executed trials that beat the best score seen earlier in the same run. And cost
+to best: how many executor calls it took to reach the peak. No evaluation
+framework, no scoring library, no judge model is involved anywhere. Every metric
+is a difference in accuracy, a share of proposals, or a count of calls.}
+\end{frame}
+
+\begin{frame}{The model --- and why the dataset is in it}
+\begin{center}
+{\large $Y \;=\; \beta_0 \;+\; \sum_{i=1}^{5}\beta_i X_i \;+\; \alert{\sum_{j=2}^{D}\gamma_j D_j} \;+\; \varepsilon$}
+\end{center}
+\vfill
+\begin{itemize}
+  \item $\pm1$ coding --- orthogonal by construction
+  \item $\gamma_j$ absorbs \alert{task difficulty}
+  \item Without it, that variance inflates every standard error
+  \item HC3 errors; Benjamini--Hochberg for multiplicity
+\end{itemize}
+\note{Each component is coded plus or minus one, and I regress each metric on
+those five indicators --- plus a dataset fixed effect, the gamma term
+highlighted here. That term is not decoration. Breast Cancer and Wine differ in
+how much headroom they leave and how they respond to the whitelist. Without the
+dataset in the model, that variation sits in the residual, inflates every
+standard error, and makes real effects harder to see. Because the factorial is
+crossed with the task suite, each component indicator is orthogonal to the
+dataset indicator by construction, so the coefficients I report are within-task
+effects. I fit on individual runs rather than cell means, use
+heteroskedasticity-consistent standard errors --- the stopping rule pins the
+experiment count at one level and frees it at the other, so the variance
+genuinely is not constant --- and apply Benjamini-Hochberg for multiplicity.}
+\end{frame}
+
+% ------------------------------------------------------------------- RESULTS
+\begin{frame}{What actually moved}
+\begin{center}\input{fig_forest}\end{center}
+\vspace{-0.2cm}
+\begin{center}\scriptsize
+filled $=$ survives Benjamini--Hochberg \quad bars $=$ 95\% CI
+\end{center}
+\note{Here is what actually moved. The wasted trial ratio is the metric the
+instruction file really governs --- four of the five components shift it, and
+the model explains sixteen per cent of its variance. Reporting style produces
+the largest effect anywhere in the design: minus zero point zero seven five. In
+plain terms, requiring the model to write full sentences cuts wasted trials from
+about ten and a half per cent to three per cent. That is a two-thirds reduction,
+from a change in wording alone. The stopping rule is the only component that
+touches either outcome metric --- worth about one tenth of a point on the gain,
+and it lifts the improvement rate from thirteen and a half to seventeen per
+cent. And the cost to best answers to nothing: no component survives adjustment.
+The largest candidate, exploit-first, lands at p equals zero point zero five
+seven. So close, and I am not going to claim it.}
+\end{frame}
+
+\begin{frame}{The task matters more than the instructions}
+\begin{center}\input{fig_dataset}\end{center}
+\vspace{-0.1cm}
+\begin{itemize}\small
+  \item Both dataset effects at $p<10^{-5}$
+  \item \alert{Adaptive stopping rule obeyed in only 20\% of runs}
+\end{itemize}
+\note{Two findings worth dwelling on. First: on two of the four metrics, the
+dataset effect is roughly twice the largest instruction component. Moving from
+Breast Cancer to Wine shifts the improvement rate by six and a half points and
+the cost to best by two tenths of a call, both at p below ten to the minus five.
+Which task you pick matters more than how you word the prompt. That is exactly
+the variation the fixed effect removes from the residual. Second, and this
+constrains everything else: I measured whether the model actually obeyed each
+instruction. The fixed budget is followed in eighty-nine per cent of runs. The
+adaptive rule, in twenty. So the stopping-rule effects I just showed are the
+effect of offering an adaptive budget, not of a loop that reliably stops on
+diminishing returns. Every estimate here is intention-to-treat, attenuated
+toward zero.}
+\end{frame}
+
+\begin{frame}{What we proved}
+\vfill
+\begin{itemize}
+  \item Instructions govern \alert{process}, not outcome
+  \item Verbose reporting: wasted trials $10.6\% \to 3.1\%$
+  \item Components act independently (3 of 40 interactions)
+  \item The method transfers to any prompt you can slice
+\end{itemize}
+\vfill
+\begin{center}\small
+$a_0 = 0.960$ on both tasks --- the ceiling, not the loop, is the binding constraint
+\end{center}
+\note{So, what did we prove. The instruction file governs how efficiently the
+loop conducts its search, not the quality of what it finds. Requiring the model
+to explain itself removes two thirds of the wasted proposals --- a large and
+reproducible effect. But no wording tested here made the loop find a better
+model, and I would argue that is a ceiling effect: untuned defaults already
+reach ninety-six per cent. On RQ2, three of forty interactions survive
+adjustment, all on one metric and all involving reporting style, so the
+components can be treated as independent --- and because the factorial is
+complete, that is something I tested rather than assumed. Finally, the method is
+not tied to the five components I happened to vary. Any instruction file that
+can be cut into slots can be studied this way. Thank you. I am happy to take
+questions.}
+\end{frame}
+
+\appendix
+\begin{frame}[standout]Questions\end{frame}
+
+\begin{frame}{Backup --- anticipated questions}
+\footnotesize
+\begin{tabular}{@{}p{4.6cm}p{7.4cm}@{}}
+\toprule
+Why not temperature 0? & It would zero the error term every coefficient is tested against.\\
+$R^2 = 0.16$ --- weak? & Expected for 5 factors over noisy agent behaviour. Hence $N=1280$.\\
+Only one agent model? & Stated limitation: one policy, not instructions in general.\\
+One wording per level? & Stated limitation: effect confounded with phrasing. Top follow-up.\\
+Why no compliance for $M$? & Executor scores regardless, so $M$ leaves no trace. $O$ gets 205 vs 386 chars.\\
+Only 40\% beat baseline? & Ceiling effect: $a_0=0.960$ on both tasks.\\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Backup --- main effects}
+\centering\footnotesize
+\begin{tabular}{lrrrrrrr}
+\toprule
+Metric & $M$ & $B$ & $S$ & $O$ & $E$ & $\hat\gamma$ & $R^2$\\
+\midrule
+Gain over default   & +0.001 & -0.001 & +0.001$^{**}$ & +0.000 & +0.000 & -0.001$^{***}$ & 0.029 \\
+Wasted trial ratio  & -0.023$^{***}$ & -0.034$^{***}$ & +0.044$^{***}$ & -0.075$^{***}$ & +0.005 & -0.003 & 0.159 \\
+Improvement rate    & +0.008 & -0.026$^{*}$ & +0.034$^{**}$ & +0.006 & +0.018 & -0.064$^{***}$ & 0.044 \\
+Cost to best        & +0.06 & -0.02 & +0.05 & -0.01 & -0.11 & -0.20$^{***}$ & 0.025 \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\end{document}

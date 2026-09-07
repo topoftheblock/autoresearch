@@ -1,0 +1,18 @@
+\begin{tikzpicture}
+\begin{axis}[width=10.5cm,height=5.4cm,y dir=reverse,
+  ytick={1,2,3,4,5}, yticklabels={Evaluation criterion,Search breadth,Stopping rule,Reporting style,Search emphasis},
+  ymin=0.5,ymax=5.5,xmin=-0.1001,xmax=0.1001,
+  xlabel={change in wasted trial ratio ($2\hat\beta$)},
+  ymajorgrids,major grid style={gray!25,dotted},
+  axis line style={gray!60},tick align=outside,tick pos=left,
+  xtick={-0.05,0,0.05},scaled x ticks=false,
+  xticklabel style={/pgf/number format/fixed,/pgf/number format/precision=2},]
+\addplot[gray!70,dashed,forget plot] coordinates {(0,0.5) (0,5.5)};
+\addplot[only marks,mark=*,mark size=3pt,mLightBrown,very thick,
+  error bars/.cd,x dir=both,x explicit,error bar style={mLightBrown,thick}]
+  coordinates {(-0.02318,1) +- (0.01218,0) (-0.03370,2) +- (0.01218,0) (0.04396,3) +- (0.01218,0) (-0.07484,4) +- (0.01218,0)};
+\addplot[only marks,mark=o,mark size=3pt,gray,very thick,
+  error bars/.cd,x dir=both,x explicit,error bar style={gray,thick}]
+  coordinates {(0.00490,5) +- (0.01218,0)};
+\end{axis}
+\end{tikzpicture}
