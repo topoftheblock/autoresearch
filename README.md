@@ -13,8 +13,10 @@ with twenty replicates each, giving 1,280 runs, and four metrics read from the
 structured transcripts are regressed on an orthogonal ±1 coding of the components
 with a dataset fixed effect.
 
-Manuscript: `thesis_new_compiled.tex`, built with `pdflatex` (run twice) to
-`thesis_new_compiled.pdf`. Defence deck: `presentation/presentation.tex`.
+Manuscript: `thesis_new_compiled.tex`. Build with `pdflatex` run twice; the
+output `thesis_new_compiled.pdf` is a build artifact, and the committed
+manuscript is `thesis_new.pdf`, copied from it. Defence deck:
+`presentation/presentation.tex`.
 
 ## Repository layout
 
@@ -59,12 +61,21 @@ Re-executing the loop calls the OpenAI chat completions endpoint and needs a key
 export OPENAI_API_KEY=sk-...
 ```
 
-Nothing below the "Re-run the study" heading needs a key. The transcripts are in
-the repository, so every number in the thesis can be regenerated offline.
+Nothing below the "Re-run the study" heading needs a key.
 
-## Reproduce the thesis from the committed transcripts
+One caveat on what a clone contains. `study/results_full/` holds the 1,280
+transcripts and the fitted tables, and it is deliberately **not tracked** --- a
+full run writes 1,280 directories, and `.gitignore` excludes it. So the offline
+reproduction below works from a working copy that already has those results, but
+a fresh clone does not have them and must either obtain the results directory
+separately or re-run the study. Everything needed to *produce* the transcripts
+is tracked: the configuration, the ten treatment paragraphs, the template, the
+loop and the analysis.
 
-No API key and no network access required.
+## Reproduce the thesis from the transcripts
+
+No API key and no network access required, given a `study/results_full/` (see
+the caveat above).
 
 ```bash
 cd study

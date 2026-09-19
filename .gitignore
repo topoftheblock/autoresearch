@@ -14,7 +14,9 @@ __pycache__/
 #   python3 -m venv study/.venv \&\& study/.venv/bin/pip install -r study/requirements.txt
 study/.venv/
 
-# LaTeX build artifacts
+# LaTeX build artifacts. thesis_new_compiled.pdf is the pdflatex output;
+# the manuscript is committed as thesis_new.pdf, copied from it.
+thesis_new_compiled.pdf
 *.aux
 *.log
 *.nav
