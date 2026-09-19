@@ -16,6 +16,30 @@ elaborated agenda. Each axis is a plausible lever on research *behavior*:
 
 Each axis has exactly two levels, coded 0/1, matching the +/-1 coding of eq. (1)
 used over the complete 2^5 factorial in design/full_factorial.py.
+
+Provenance and two known defects of this treatment set (thesis, The Instruction
+File as a Configuration). The ten paragraphs were written by a language model
+distinct from the agent, from meta-prompts that were NOT preserved: the texts
+below can be inspected and reused, but not regenerated. Two properties such a
+set would ideally have do not hold, and both are reported in the thesis rather
+than corrected here, because correcting them now would invalidate the 1,280
+runs already executed against these exact strings:
+
+  1. The two levels of a slot are not length-matched. Token counts, level 0 /
+     level 1: M 10/56, B 32/26, S 32/59, O 20/34, E 24/32. Paragraph length
+     does not order the results -- total treatment length correlates with the
+     wasted trial ratio at r = -0.05 across the 112..213 token range spanned by
+     the 32 files -- but the levels are not matched.
+  2. Slot S level 1 refers to slot M: "the evaluation metric (defined above)".
+     Under M=0, which leaves the criterion to the loop, that phrase names
+     nothing definite, so S=1 is underspecified in 16 of the 32 configurations.
+     M and S remain orthogonal by construction and their interaction is null
+     (-0.004 on the wasted trial ratio, adj. p = 0.54), so this did not distort
+     the estimates; its visible consequence is the low S=1 compliance rate.
+
+Anyone regenerating this set should sample several wordings per level, which is
+the future work the thesis names, and should control length and cross-slot
+reference across that family.
 """
 
 AXES = {

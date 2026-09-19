@@ -29,7 +29,7 @@
 \begin{frame}{Nobody knows why these loops work}
 \begin{itemize}
   \item March 2026: \texttt{autoresearch} ships
-  \item ${\sim}13{,}000$ forks in six months
+  \item Forked several thousand times since
   \item An agent runs its own experiments
   \item Nobody can say \emph{which instruction} worked
 \end{itemize}
@@ -43,7 +43,7 @@ The idea is simple and slightly unsettling. You give a language model a goal,
 some code it is allowed to edit, and a script that runs a trial and hands back
 one number. Then you walk away. Overnight the model proposes a change, runs it,
 reads the result, decides what to try next, and repeats until the budget is
-gone. In six months it has been forked over thirteen thousand times. People are
+gone. It has been forked several thousand times. People are
 running it on real systems. And here is the part that motivated this project:
 when one of these loops produces a good result, nobody can tell you which part
 of the instructions was responsible. That is the gap I set out to close.}
@@ -290,7 +290,7 @@ sampling seed so any individual run can still be regenerated exactly.}
 \begin{frame}{Four metrics, straight off the transcript}
 \begin{itemize}
   \item \textbf{Gain over default} --- did it improve anything?
-  \item \textbf{Wasted trial ratio} --- malformed $+$ duplicate
+  \item \textbf{Wasted trial ratio} --- rejected $+$ duplicate
   \item \textbf{Improvement rate} --- trials beating the best so far
   \item \textbf{Cost to best} --- calls to reach the peak
 \end{itemize}
@@ -301,9 +301,13 @@ sampling seed so any individual run can still be regenerated exactly.}
 \note{Four dependent variables, all computed mechanically from the structured
 transcript. Gain over default: the score of the configuration the run finally
 recommends, minus a default-hyperparameter baseline computed before any run.
-Wasted trial ratio: proposals that were malformed or rejected by the whitelist,
-plus exact duplicates of earlier proposals, over all attempts --- both of those
-burn a turn without buying a measurement. Improvement rate: the share of
+Wasted trial ratio: proposals rejected before execution --- malformed, wrong
+shape, or outside the executor's whitelist --- plus exact duplicates of earlier
+proposals, over all attempts. Both burn a turn without buying a measurement.
+Worth flagging now, because it changes how the headline result reads: in this
+study the metric turned out to be almost entirely whitelist violations. Not one
+of the five thousand one hundred and forty replies was malformed, and only five
+proposals in the whole study repeated an earlier one. Improvement rate: the share of
 executed trials that beat the best score seen earlier in the same run. And cost
 to best: how many executor calls it took to reach the peak. No evaluation
 framework, no scoring library, no judge model is involved anywhere. Every metric
@@ -336,6 +340,48 @@ genuinely is not constant --- and apply Benjamini-Hochberg for multiplicity.}
 \end{frame}
 
 % ------------------------------------------------------------------- RESULTS
+\begin{frame}{What the loop actually did}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\footnotesize
+\begin{tabular}{@{}lr@{}}
+\toprule
+Proposals attempted & $5{,}140$\\
+Experiments executed & $4{,}768$\\
+Proposals rejected & $372$\\
+Duplicate proposals & $5$\\
+Malformed replies & $0$\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.48\textwidth}
+\footnotesize
+$369$ of $372$ rejections were \alert{whitelist violations}\\[4pt]
+$290$: \texttt{min\_samples\_split}\\
+$71$: \texttt{random\_state}\\[6pt]
+Every one a legitimate scikit-learn argument the whitelist does not admit
+\end{column}
+\end{columns}
+\vfill
+\begin{center}\small
+The loop is never shown the whitelist. It discovers the boundary by being rejected.
+\end{center}
+\note{Before the coefficients, what the runs actually did --- because it changes
+how you read the headline. Five thousand one hundred and forty proposals, four
+thousand seven hundred and sixty-eight executed, three hundred and seventy-two
+rejected. Now look at the composition. Not one reply was malformed JSON or the
+wrong shape. Only five proposals in the entire study duplicated an earlier one.
+Three hundred and sixty-nine of the three hundred and seventy-two rejections
+were whitelist violations, and two hundred and ninety of those were a single
+argument: min samples split on the random forest. Seventy-one more were random
+state. Every one of these is a perfectly legitimate scikit-learn hyperparameter
+that my whitelist happens not to admit --- and the agent is never shown the
+whitelist. The template tells it to choose hyperparameters and nothing more. So
+the wasted trial ratio, in this study, measures one specific thing: how often
+the loop reaches past an interface boundary it was never told about. Keep that
+in mind for the next slide.}
+\end{frame}
+
 \begin{frame}{What actually moved}
 \begin{center}\input{fig_forest}\end{center}
 \vspace{-0.2cm}
@@ -348,7 +394,13 @@ the model explains sixteen per cent of its variance. Reporting style produces
 the largest effect anywhere in the design: minus zero point zero seven five. In
 plain terms, requiring the model to write full sentences cuts wasted trials from
 about ten and a half per cent to three per cent. That is a two-thirds reduction,
-from a change in wording alone. The stopping rule is the only component that
+from a change in wording alone. And after the previous slide we can say what it
+is a reduction in: whitelist violations. Two hundred and seventy-three of the
+three hundred and sixty-nine happened under terse reporting, ninety-six under
+full sentences. The loop carries no state but its own transcript, so a loop that
+writes out its reasoning has the executor's earlier rejection messages, and its
+own response to them, in front of it when it proposes the next experiment. The
+stopping rule is the only component that
 touches either outcome metric --- worth about one tenth of a point on the gain,
 and it lifts the improvement rate from thirteen and a half to seventeen per
 cent. And the cost to best answers to nothing: no component survives adjustment.
@@ -373,8 +425,77 @@ constrains everything else: I measured whether the model actually obeyed each
 instruction. The fixed budget is followed in eighty-nine per cent of runs. The
 adaptive rule, in twenty. So the stopping-rule effects I just showed are the
 effect of offering an adaptive budget, not of a loop that reliably stops on
-diminishing returns. Every estimate here is intention-to-treat, attenuated
-toward zero.}
+diminishing returns. Every estimate here is intention-to-treat: it measures the
+effect of issuing an instruction, not of a loop that follows it, and is
+attenuated toward zero relative to the effect on compliant runs. Two honest
+caveats on that twenty per cent, both in the thesis. The check scores the
+adaptive rule against cross-validated accuracy even in the half of the design
+where the metric slot deliberately leaves the criterion to the loop. And the
+adaptive stopping paragraph refers to the evaluation metric defined above ---
+which, when the metric slot is at level zero, is not defined at all. Compliance
+is indeed lower where the criterion is left open, sixteen per cent against
+twenty-three, but it is low on both sides, so that is part of the story and not
+all of it.}
+\end{frame}
+
+\begin{frame}{RQ2: do the components interact?}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\footnotesize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Interaction & Est. & adj.\ $p$\\
+\midrule
+$S \times O$ & $-0.031$ & $0.000$\\
+$B \times O$ & $+0.018$ & $0.009$\\
+$O \times E$ & $-0.016$ & $0.019$\\
+$M \times B$ & $-0.010$ & $0.171$\\
+\bottomrule
+\end{tabular}
+\vspace{4pt}
+
+\footnotesize 3 of 40 survive. All on the wasted trial ratio, all involving $O$.
+$R^2$: $0.159 \to 0.192$.
+\end{column}
+\begin{column}{0.50\textwidth}
+\footnotesize
+Mean wasted trial ratio:
+\vspace{2pt}
+
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & terse & full sentences\\
+\midrule
+fixed budget    & $0.068$ & $0.024$\\
+adaptive budget & $0.143$ & $0.037$\\
+\bottomrule
+\end{tabular}
+\vspace{4pt}
+
+\alert{Additive prediction: $0.100$. Observed: $0.037$.}
+\end{column}
+\end{columns}
+\vfill
+\begin{center}\small
+A generous budget is expensive \emph{only} when the loop reports tersely.
+\end{center}
+\note{RQ2. Ten pairwise interactions per metric, forty across the four. Three
+survive adjustment --- all on the wasted trial ratio, all involving the
+reporting style. Adding all ten terms lifts R-squared only from point one five
+nine to point one nine two, so the interaction structure is real but small, and
+for thirty-seven of forty pairs there is simply no evidence of dependence. That
+is the sense in which the components are close to additive: knowing what each
+slot does on its own is enough to predict a combination. The one exception is
+worth the slide. Look at the cell means on the right. An adaptive budget roughly
+doubles wasted trials when reporting is terse --- point zero six eight to point
+one four three. Under full sentences it barely moves: point zero two four to
+point zero three seven. Adding the separate effects predicts point one zero
+zero for that bottom-right cell; the observed value is point zero three seven.
+So this is not two components substituting for each other. It is one making the
+other affordable. If you want to give the loop a generous experiment budget,
+make it write its reasoning down first. I checked this holds on the logit,
+square-root and arcsine scales, so it is not an artefact of fitting a proportion
+on its natural scale.}
 \end{frame}
 
 \begin{frame}{What we proved}
@@ -382,7 +503,7 @@ toward zero.}
 \begin{itemize}
   \item Instructions govern \alert{process}, not outcome
   \item Verbose reporting: wasted trials $10.6\% \to 3.1\%$
-  \item Components act independently (3 of 40 interactions)
+  \item Components close to additive (37 of 40 nulls)
   \item The method transfers to any prompt you can slice
 \end{itemize}
 \vfill
@@ -394,10 +515,10 @@ loop conducts its search, not the quality of what it finds. Requiring the model
 to explain itself removes two thirds of the wasted proposals --- a large and
 reproducible effect. But no wording tested here made the loop find a better
 model, and I would argue that is a ceiling effect: untuned defaults already
-reach ninety-six per cent. On RQ2, three of forty interactions survive
-adjustment, all on one metric and all involving reporting style, so the
-components can be treated as independent --- and because the factorial is
-complete, that is something I tested rather than assumed. Finally, the method is
+reach ninety-six per cent. On RQ2, thirty-seven of forty pairwise
+terms show no evidence of interaction, so the components can be treated as
+additive and the file tuned one sentence at a time --- and because the factorial
+is complete, that is something I tested rather than assumed. Finally, the method is
 not tied to the five components I happened to vary. Any instruction file that
 can be cut into slots can be studied this way. Thank you. I am happy to take
 questions.}
@@ -415,14 +536,28 @@ $R^2 = 0.16$ --- weak? & Expected for 5 factors over noisy agent behaviour. Henc
 Only one agent model? & Stated limitation: one policy, not instructions in general.\\
 One wording per level? & Stated limitation: effect confounded with phrasing. Top follow-up.\\
 Why no compliance for $M$? & Executor scores regardless, so $M$ leaves no trace. $O$ gets 205 vs 386 chars.\\
-Only 40\% beat baseline? & Ceiling effect: $a_0=0.960$ on both tasks.\\
+Only 40\% beat baseline? & Ceiling effect: $a_0=0.960$; a further 39\% return it exactly.\\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+\begin{frame}{Backup --- known defects of the treatment set}
+\footnotesize
+\begin{tabular}{@{}p{3.9cm}p{8.1cm}@{}}
+\toprule
+Levels length-matched? & No. Token counts differ up to $5\times$ ($M$: 10 vs 56). Length does not order the results: $r=-0.05$ with the wasted ratio across the 32 files.\\
+Any cross-slot reference? & Yes, one. $S/1$ names ``the evaluation metric (defined above)'', i.e.\ slot $M$, so $S=1$ is underspecified when $M=0$. $M\times S$ is null (adj.\ $p=0.54$).\\
+Seeds all as planned? & 9 runs of 1{,}280 needed a replacement seed, in 2 cells. Every cell still holds exactly 20.\\
+What does ``refines'' mean? & Same family $+$ $\ge 1$ hyperparameter value carried over. A weaker reading moves $E$ compliance $0.69 \to 0.98$.\\
+Meta-prompts available? & No. The ten paragraphs can be reused but not regenerated.\\
 \bottomrule
 \end{tabular}
 \end{frame}
 
 \begin{frame}{Backup --- main effects}
 \centering\footnotesize
-\begin{tabular}{lrrrrrrr}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lrrrrrrr@{}}
 \toprule
 Metric & $M$ & $B$ & $S$ & $O$ & $E$ & $\hat\gamma$ & $R^2$\\
 \midrule
