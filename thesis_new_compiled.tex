@@ -26,22 +26,22 @@
 \maketitle
 
 \begin{abstract}
-An autoresearch loop is one in which a language model proposes, executes and interprets experiments without a human in the loop. In the form popularized by Karpathy's \texttt{autoresearch}, that procedure is written in English in a single instruction file, \texttt{program.md}. This thesis treats the instruction file as a configuration vector. Five components of \texttt{program.md} are each written at two levels. All $2^5 = 32$ combinations are generated and executed on two classification tasks with twenty replicates each, giving $1{,}280$ runs. Four behavioral metrics read from the structured transcripts are then regressed on an orthogonal $\pm 1$ coding of the components with a dataset fixed effect. Because the configurations are constructed instead of observed, the coefficients admit a causal reading, and because the factorial is complete, the independence of the components can be tested. The components determine the process of the search rather than its outcome. The reporting style has the largest effect in the design and cuts the wasted trial ratio from $0.106$ to $0.031$. The stopping rule is the only component with an effect on either outcome metric, and its effect on the gain over default is smaller than the difference between the two datasets. \end{abstract}
+An autoresearch loop is one in which a language model proposes, executes and interprets experiments without a human in the loop. In the form made popular by Karpathy's \texttt{autoresearch}, that procedure is written in natural language in a single  file, \texttt{program.md}. This thesis treats the instruction file as a configuration vector. Five components of \texttt{program.md} are each written at two levels. All $2^5 = 32$ combinations are generated and executed on two classification tasks with twenty replications each. This resulted in $1{,}280$ runs. The components determine the process of the search rather than its outcome.  \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
 \subsection{Background}
 
-In an autoresearch loop, a language model performs the experimentation itself. It is given a goal, a body of code it may edit, and an executor that runs a trial and returns a scalar result. It then works unattended: it proposes a change, executes it, reads the outcome, decides what to try next, and repeats until the budget is exhausted. Karpathy's \texttt{autoresearch} \cite{Karpathy2026autoresearch} fixed the current meaning of the term. It appeared in March 2026 and has since been forked several thousand times.
+In an autoresearch loop, a language model performs the experimentation. It is given a goal, a body of code it can edit. It then works unattended. It proposes a change, executes it, reads the outcome, decides what to try next, and repeats until the budget is exhausted. Karpathy's \texttt{autoresearch} \cite{Karpathy2026autoresearch} fixed the current meaning of the term. It appeared in March 2026 and has since been forked several thousand times.
 
-The architecture is comprised of three files. \texttt{prepare.py} holds the data and defines the score, nobody edits it, so every experiment is scored identically. \texttt{train.py} holds the model and the training loop and is edited only by the agent; \texttt{program.md} holds the instructions and is crafted by the human.
+The architecture is comprised of three files. \texttt{prepare.py} holds the data and defines the score. Nobody can edit it, so every experiment is scored identically. \texttt{train.py} holds the model and the training loop and is edited only by the agent. \texttt{program.md} holds the instructions and is crafted by the human.
 
-The experiment cycle exists only as English natural language in \texttt{program.md}. The model is the execution layer, and \texttt{program.md} is therefore is the controller.
+The experiment cycle exists only as natural language in \texttt{program.md}. The model is the execution layer, and \texttt{program.md} is therefore is the controller.
 
 \subsection{Motivation and Research Objective}
 
-An instruction file settles five matters at once: what counts as success, how widely the agent is allowed to search, when it must stop, how it must report, and where to concentrate its effort. Two differently worded files therefore differ in all five at once, so no effect can be attributed to any single matter. Separating them requires a \texttt{program.md} file in which one configuration changes while the rest stay fixed. This is to treat the file as a configuration vector rather than as prose. Five components of \texttt{program.md} are each written at two levels. All $2^5 = 32$ combinations are generated and executed. The aim is not to propose a better autoresearch loop, but to establish what an existing one responds to.
+An instruction file settles five matters at once: what counts as success, how widely the agent is allowed to search, when it must stop, how it must report, and where to concentrate its effort. If two differently worded files therefore differ in all five at once, then no effect can be attributed to any single matter. Separating the effects requires a \texttt{program.md} file in which one configuration changes while the rest stay fixed. This is to treat the file as a configuration vector. Five components of \texttt{program.md} are each written at two levels. All $2^5 = 32$ combinations are generated and executed. The aim of the research project is not to propose a better autoresearch loop, but instead to establish what an existing one responds to.
 
 The research questions are:
 
@@ -50,9 +50,9 @@ The research questions are:
 \item[\textbf{RQ2}] Do the components act independently of one another, or does the effect of one depend on the level of another?
 \end{enumerate}
 
-\subsection{Structure of the Thesis}
+\subsection{Structure of the Write-Up}
 
-This thesis has four sections. Section~\ref{sec:background} describes how the instruction file becomes a configuration vector, and why executing every configuration identifies the effect of each component. Section~\ref{sec:eval} gives the experimental setup, the metrics and the regression model, then the results. Section~\ref{sec:conclusion} summarizes the findings. Appendix~\ref{app:files} reproduces the three files the loop runs on, including the complete specification from which every instruction file can be reconstructed.
+This write-up has four sections. Section~\ref{sec:background} describes how the instruction file becomes a configuration vector, and why executing every configuration identifies the effect of each component. Section~\ref{sec:eval} gives the experimental setup, the metrics and the regression model, then the results. Section~\ref{sec:conclusion} summarizes the findings. Appendix~\ref{app:files} reproduces the three files the loop runs on, including the complete specification from which every instruction file can be reconstructed.
 
 
 \section{Background}
@@ -100,7 +100,7 @@ c = (c_1,\ldots,c_5), \qquad c_i \in \{0,1\},
 \]
 where the slots are taken in the order metric, breadth, stopping rule, output format and emphasis, yielding $2^5 = 32$ files. For example, $c = (1,0,1,1,0)$ is the file \texttt{M1-B0-S1-O1-E0}: the level-1 paragraph in the evaluation slot, level 0 in breadth, level 1 in stopping, level 1 in reporting and level 0 in emphasis. Its neighbor \texttt{M1-B0-S1-O0-E0} is the same file with one paragraph changed and all else fixed. The remaining thirty files are the other combinations.
 
-Table~\ref{tab:axes} lists the levels. A production \texttt{program.md} hardcodes the baseline to be exceeded, specifies how failures are handled, fixes a reporting discipline and imposes a parsimony rule \cite{Tuychiev2026guide}. The five components in the table are drawn from these categories. The loop carries no state except its own transcript. Before proposing the next experiment it can read only what it wrote in the hypothesis and interpretation of earlier runs. The reporting style $O$ thus controls how much of its own reasoning the loop can later access.
+Table~\ref{tab:axes} lists the levels. A \texttt{program.md} used in production hardcodes the baseline to be exceeded, specifies how failures are handled, fixes a reporting discipline and imposes a parsimony rule \cite{Tuychiev2026guide}. The five components in the table are drawn from these categories. The loop carries no state except its own transcript. Before proposing the next experiment it can read only what it wrote in the hypothesis and interpretation of earlier runs. The reporting style $O$ thus controls how much of its own reasoning the loop can later access.
 
 \begin{table}[t]
 \centering
@@ -132,11 +132,10 @@ All experiments were implemented in Python. The files the loop runs on are repro
 
 Every configuration runs on two canonical classification datasets, selected to differ in size, dimensionality and number of classes - Breast Cancer Wisconsin ($569 \times 30$, two classes) and Wine ($178 \times 13$, three classes). The loop may select \texttt{RandomForestClassifier} or \texttt{GradientBoostingClassifier} under a fixed hyperparameter whitelist that the agent is not shown, given in Appendix~\ref{app:train}. Anything outside it is rejected before an estimator is built.
 
-A single reference quantity is computed per dataset before any run, without the use of a language model. The quantity $a_0(d)$ is the accuracy of a default-hyperparameter fit, taken as the better of the two model families, and every run is measured against it. On both datasets the better family is the random forest, on the cross-validated scale, $a_0 = 0.9598$ on Breast Cancer and $0.9600$ on Wine.
-
+A single reference quantity is computed per dataset before any run. The quantity $a_0(d)$ is the accuracy of a default-hyperparameter fit. On both datasets the better family is the random forest.
 \subsection{Design and Budget}
 
-The design is the complete $2^5$ factorial for each dataset and replicated $R$ times: $N = 2^5 \cdot D \cdot R$ runs. With $D=2$ and $R=20$ that is $N=1{,}280$ runs in 64 cells of 20. Of them, $1{,}278$ ended on the model's own stop decision and two on the upper-bound of eight experiments. The study issued about $9{,}900$ model calls and $4{,}768$ estimator fits, the fits taking $74$ minutes of executor time in total.
+The design is the complete $2^5$ factorial for each dataset and replicated $R$ times: $N = 2^5 \cdot D \cdot R$ runs. With $D=2$ and $R=20$ that is $N=1{,}280$ runs. Of them, $1{,}278$ ended on the model's own stop decision and two on the upper-bound of eight experiments. The study did about $9{,}900$ model calls and $4{,}768$ estimator fits, the fits took $74$ minutes of executor time in total.
 
 \subsection{Metrics}
 
@@ -294,7 +293,7 @@ Table~\ref{tab:main} gives the main-effect estimates and Figure~\ref{fig:coeffic
 
 The wasted trial ratio is the most responsive metric. Four of the five components produce effects that are significant, and the model accounts for $R^2=0.16$ of its variance. The reporting style produces the largest effect anywhere in the design, $2\hat\beta_O=-0.075$. The mean ratio falls from $0.106$ at level $0$ to $0.031$ at level $1$. Search breadth and the evaluation criterion act in the same direction, with effects of $-0.034$ and $-0.023$. The adaptive stopping rule acts in the opposite direction, $+0.044$, raising the mean ratio from $0.046$ to $0.090$. The adaptive level raises the mean number of executed experiments from $2.88$ to $4.57$ and the mean number of rejected proposals per run from $0.17$ to $0.41$. 
 
-The two outcome metrics respond to the stopping rule alone. It is the only component whose effect on the gain over default survives adjustment ($+0.001$, adj.\ $p=0.005$), and it raises the improvement rate from $0.135$ to $0.170$. Search breadth is the only other component affecting the improvement rate, at $-0.026$. No component affects the cost to best at the adjusted $0.05$ level. The components that determine efficiency are thus not the components that determine outcome.
+The two outcome metrics respond to the stopping rule alone. It is the only component whose effect on the gain over default is significant ($+0.001$, adj.\ $p=0.005$), and it raises the improvement rate from $0.135$ to $0.170$. Search breadth is the only other component affecting the improvement rate, at $-0.026$. No component affects the cost to best at the adjusted $0.05$ level. The components that determine efficiency are thus not the components that determine outcome.
 
 On two of the four metrics the dataset fixed effect is roughly twice the largest component effect. Wine reduces the improvement rate by $0.064$ and the cost to best by $0.20$ relative to Breast Cancer, both at $p<10^{-5}$, against largest component effects of $0.034$ and $0.11$ on the same metrics. On these two metrics the task matters more than the wording of the instruction file.
 
@@ -384,48 +383,9 @@ of their prompts? NAACL-HLT, pages 2300--2344, 2022.
 
 \appendix
 
-\section{The files the loop runs on}
-\label{app:files}
-
-Section~\ref{sec:intro} describes the three-file contract of Karpathy's
-\texttt{autoresearch}: \texttt{prepare.py} fixes the data and the score,
-\texttt{train.py} holds the model and the training loop, and \texttt{program.md} holds
-the instructions. The study keeps that contract file for file. All three are reproduced
-below: the specification of \texttt{program.md} in Appendix~\ref{app:program},
-\texttt{prepare.py} in Appendix~\ref{app:prepare}, and \texttt{train.py} together with the
-executor whitelist in Appendix~\ref{app:train}.
-
-One thing does differ, and it is the narrowing of Section~\ref{sec:background}. In Karpathy's loop the agent edits \texttt{train.py}
-directly. Here the search space is a hyperparameter space, not arbitrary code, so that
-the instruction file stays the only free variable; the agent names a model family and
-hyperparameter values in a JSON proposal and \texttt{train.py} builds exactly that
-estimator. The agent therefore acts on \texttt{train.py} through a fixed interface
-instead of rewriting it. What is unchanged is the ownership that matters for
-measurement: \texttt{prepare.py} is reachable by nobody, so no level of any component
-can alter what a score means, and every number in a transcript is a measurement rather
-than a claim.
 
 \section{Specification of the instruction file}
 \label{app:program}
-
-A \texttt{program.md} is not written. This appendix gives the whole
-specification, from which any of the thirty-two files can be reconstructed exactly: the
-template, which is fixed, and the ten paragraphs that fill its five slots.
-
-Appendix~\ref{app:template} gives the template. Everything in it is byte-identical
-across all thirty-two configurations of a task. The five marked slots are the
-independent variables. The three remaining substitutions, \texttt{task\_title},
-\texttt{research\_question} and \texttt{dataset\_name}, are set by the task and not by
-the configuration, so they are constant across the thirty-two files of one dataset and
-differ only between datasets.
-
-Appendix~\ref{app:levels} gives the ten paragraphs, two per slot, verbatim. A
-configuration $c = (c_1,\ldots,c_5)$ selects one paragraph per slot, and substituting
-one paragraph for the other level of the same slot is the only difference between two
-files. These ten texts are the treatment: they were written once by a language model
-from fixed meta-prompts that were not preserved, then frozen and reused word for word, for the reason given in
-Section~\ref{sec:background}. Table~\ref{tab:axes} summarizes them; what follows is the text
-itself, since it is the wording rather than the summary that the loop responds to.
 
 \subsection{Template}
 \label{app:template}
@@ -522,12 +482,6 @@ Interpreting the last result and deciding what happens next:
 \section{\texttt{prepare.py}}
 \label{app:prepare}
 
-The data and the score. Nobody edits this file, and the agent never sees it, so no
-level of any component can change what an experiment is measured on or how it is
-scored. One stratified $70/30$ partition per task, fixed with the same seed for every
-run, and one scoring procedure returning the same record every time, whatever a
-configuration's evaluation paragraph emphasizes.
-
 \begin{lstlisting}[style=src,language=Python]
 """
 prepare.py -- the data and the score. Nobody edits this file.
@@ -613,12 +567,6 @@ def describe(name):
 \section{\texttt{train.py} and the executor whitelist}
 \label{app:train}
 
-The model and the training loop. The whitelist here is the boundary of the search
-space: a proposal naming an unknown family, or a hyperparameter outside the whitelist
-for its family, is rejected before it reaches the scoring procedure, so a malformed
-proposal costs a turn but not an experiment. The whitelist is defined once in the study
-configuration and is the same on every task; it is not shown to the agent, whose
-instruction file only says that the hyperparameters are its to choose.
 
 \begin{lstlisting}[style=src,language=Python]
 # config/study_config.py (excerpt): the executor whitelist
